@@ -1132,13 +1132,29 @@ class RecorderApp {
 
     /**
      * Configures the MediaRecorder instance.
-     * iOS Safari does NOT support audio/webm - uses audio/mp4 fallback.
+     * iOS Safari: isTypeSupportedが未定義のことがあり、audio/webm非対応。audio/mp4またはvideo/mp4を使用。
      */
     setupRecorder(stream) {
-        // iOS Safariはaudio/webmをサポートしていないため、isTypeSupportedで検出
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+        const mimeTypes = ['audio/webm', 'audio/mp4', 'video/mp4'];
+        let mimeType = 'audio/webm';
+        let mediaRecorder = null;
+
+        for (const mt of mimeTypes) {
+            try {
+                // isTypeSupportedが存在しないSafariでは呼び出しで例外になるためチェック
+                if (typeof MediaRecorder.isTypeSupported === 'function' && !MediaRecorder.isTypeSupported(mt)) continue;
+                mediaRecorder = new MediaRecorder(stream, { mimeType: mt });
+                mimeType = mt;
+                break;
+            } catch (e) {
+                console.warn(`MediaRecorder ${mt} failed:`, e);
+                continue;
+            }
+        }
+        if (!mediaRecorder) throw new Error('録音形式を初期化できませんでした');
+
         this.recordingMimeType = mimeType;
-        this.mediaRecorder = new MediaRecorder(stream, { mimeType });
+        this.mediaRecorder = mediaRecorder;
         this.audioChunks = [];
 
         this.mediaRecorder.ondataavailable = (event) => {
