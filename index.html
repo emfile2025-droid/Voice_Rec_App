@@ -1146,8 +1146,9 @@ class RecorderApp {
             return;
         }
 
+        let stream = null;
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
             // Setup MediaRecorder
             this.setupRecorder(stream);
@@ -1162,8 +1163,17 @@ class RecorderApp {
                 console.error('Wake Lock error:', err);
             }
             
-            // Start
-            this.mediaRecorder.start();
+            // Start（iOS Safariではstart()が失敗することがあるため、timeslice付きも試行）
+            try {
+                this.mediaRecorder.start();
+            } catch (startErr) {
+                try {
+                    this.mediaRecorder.start(1000);
+                } catch (startErr2) {
+                    stream.getTracks().forEach(t => t.stop());
+                    throw new Error('録音開始に失敗: ' + (startErr2.message || startErr2));
+                }
+            }
             this.isRecording = true;
             this.startTime = Date.now();
             this.updateUIState(true);
@@ -1173,29 +1183,40 @@ class RecorderApp {
 
         } catch (err) {
             console.error('Error accessing microphone or starting recorder:', err);
-            alert('マイクへのアクセス、または録音の開始に失敗しました。設定を確認してください。');
+            if (stream) stream.getTracks().forEach(t => t.stop());
+            const msg = err && err.message ? err.message : String(err);
+            alert('マイクへのアクセス、または録音の開始に失敗しました。\n\n詳細: ' + msg + '\n\n設定を確認するか、Safariの通常ブラウザでお試しください。');
         }
     }
 
     /**
      * Configures the MediaRecorder instance.
-     * iOS Safari: isTypeSupportedが未定義のことがあり、audio/webm非対応。audio/mp4またはvideo/mp4を使用。
+     * iOS Safari: オプションなしを最優先。isTypeSupportedが未定義のことがあり、audio/webm非対応。
      */
     setupRecorder(stream) {
-        const mimeTypes = ['audio/webm', 'audio/mp4', 'video/mp4'];
-        let mimeType = 'audio/webm';
         let mediaRecorder = null;
+        let mimeType = 'audio/webm';
 
-        for (const mt of mimeTypes) {
-            try {
-                // isTypeSupportedが存在しないSafariでは呼び出しで例外になるためチェック
-                if (typeof MediaRecorder.isTypeSupported === 'function' && !MediaRecorder.isTypeSupported(mt)) continue;
-                mediaRecorder = new MediaRecorder(stream, { mimeType: mt });
-                mimeType = mt;
-                break;
-            } catch (e) {
-                console.warn(`MediaRecorder ${mt} failed:`, e);
-                continue;
+        // 1. 最優先: オプションなし（ブラウザがデフォルト形式を選択。iOS Safariで有効）
+        try {
+            mediaRecorder = new MediaRecorder(stream);
+            mimeType = (mediaRecorder.mimeType && mediaRecorder.mimeType.length > 0) ? mediaRecorder.mimeType : 'audio/mp4';
+        } catch (e) {
+            console.warn('MediaRecorder(stream) failed:', e);
+        }
+
+        // 2. フォールバック: 明示的なMIMEタイプ
+        if (!mediaRecorder) {
+            for (const mt of ['audio/mp4', 'video/mp4', 'audio/webm']) {
+                try {
+                    if (typeof MediaRecorder.isTypeSupported === 'function' && !MediaRecorder.isTypeSupported(mt)) continue;
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: mt });
+                    mimeType = mt;
+                    break;
+                } catch (e) {
+                    console.warn(`MediaRecorder ${mt} failed:`, e);
+                    continue;
+                }
             }
         }
         if (!mediaRecorder) throw new Error('録音形式を初期化できませんでした');
