@@ -1,0 +1,2108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Auto-Split Recorder ver.1.0.1 (2026-02-15 23:56)</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23007bff' width='100' height='100' rx='20'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='central'>🎙️</text></svg>">
+    <meta name="theme-color" content="#007bff">
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --danger-color: #ef4444;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --bg-color: #f0f4f8;
+            --card-bg: #ffffff;
+            --card-border: #e2e8f0;
+            --text-color: #1e293b;
+            --text-muted: #64748b;
+            --input-bg: #f8fafc;
+            --input-border: #cbd5e1;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid var(--card-border);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+
+        /* モバイル対応 */
+        @media (max-width: 640px) {
+            body {
+                padding: 8px;
+            }
+
+            .container {
+                padding: 16px;
+                border-radius: 12px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+                margin-bottom: 20px;
+            }
+
+            h3 {
+                font-size: 1rem;
+            }
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+            color: var(--text-color);
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-color);
+        }
+
+        /* Input Section */
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 640px) {
+            .input-group {
+                margin-bottom: 16px;
+            }
+
+            label {
+                font-size: 0.8125rem;
+            }
+
+            input[type="password"], input[type="text"], input[type="number"], select {
+                padding: 12px;
+                font-size: 16px; /* iOSでズームを防ぐ */
+            }
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: var(--text-color);
+        }
+
+        input[type="password"], input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 0.9375rem;
+            background: var(--input-bg);
+            color: var(--text-color);
+            transition: border-color 0.2s;
+        }
+
+        input[type="password"]:focus, input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        small {
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+        }
+
+        .mode-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .mode-option {
+            min-width: 0;
+        }
+
+        @media (max-width: 640px) {
+            .mode-selector {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .mode-option label {
+                padding: 14px 10px;
+                font-size: 0.875rem;
+            }
+        }
+
+        .mode-option input[type="radio"] {
+            display: none;
+        }
+
+        .mode-option label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 16px 12px;
+            border: 2px solid var(--card-border);
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            color: var(--text-muted);
+            position: relative;
+        }
+
+        .mode-option input[type="radio"]:checked + label {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+            color: var(--text-color);
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+        }
+
+        .mode-option input[type="radio"]:checked + label::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary-color);
+        }
+
+        .mode-option label:hover {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            color: var(--text-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+        }
+
+        .mode-option label small {
+            font-size: 0.625rem;
+            line-height: 1;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            color: white;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        @media (max-width: 640px) {
+            .controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            button {
+                width: 100%;
+                padding: 14px 20px;
+                font-size: 0.9375rem;
+            }
+        }
+
+        .btn-icon {
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        #btnStart { 
+            background-color: var(--primary-color); 
+        }
+        #btnStart:hover:not(:disabled) { 
+            background-color: #0066cc; 
+        }
+        #btnStart:disabled { 
+            background-color: var(--input-bg); 
+            color: var(--text-muted);
+            cursor: not-allowed; 
+        }
+        
+        #btnStop { 
+            background-color: var(--danger-color); 
+        }
+        #btnStop:hover:not(:disabled) { 
+            background-color: #dc2626; 
+        }
+        #btnStop:disabled { 
+            background-color: var(--input-bg); 
+            color: var(--text-muted);
+            cursor: not-allowed; 
+        }
+
+        /* Status & Timer */
+        .status-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @media (max-width: 640px) {
+            .status-panel {
+                padding: 14px;
+            }
+
+            .status-panel > div:first-child {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .timer-section {
+                width: 100%;
+                text-align: left;
+                margin-top: 12px;
+            }
+        }
+
+        .status-panel.recording::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.15) 50%, transparent 100%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .status-panel > div:first-child {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .recording-indicator {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            color: var(--primary-color);
+            font-size: 20px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+        }
+
+        @media (max-width: 640px) {
+            .recording-indicator {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+            }
+        }
+
+        .recording-indicator.active {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: var(--danger-color);
+            animation: pulse-dot 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            box-shadow: 0 2px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .status-info {
+            flex: 1;
+        }
+
+        .status-info p:first-child {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+            color: var(--text-color);
+        }
+
+        .status-info p:last-child {
+            font-size: 0.75rem;
+            margin: 0;
+            color: var(--text-muted);
+        }
+
+        .status-info .model-name {
+            font-family: monospace;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .timer-section {
+            text-align: right;
+        }
+
+        .timer {
+            font-family: monospace;
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-color);
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        @media (max-width: 640px) {
+            .timer {
+                font-size: 1.5rem;
+            }
+        }
+
+        .timer-section > div:last-child {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Log Output */
+        #logs {
+            margin-top: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .log-entry {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .log-entry:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .log-header {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .log-header strong {
+            color: var(--text-color);
+            font-weight: 600;
+        }
+
+        .log-content {
+            white-space: pre-wrap;
+            line-height: 1.7;
+            color: var(--text-color);
+            font-size: 0.9375rem;
+        }
+
+        .log-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 640px) {
+            .log-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .log-action-btn {
+                width: 100%;
+                padding: 10px;
+            }
+
+            .log-entry {
+                padding: 14px;
+            }
+
+            .log-content {
+                font-size: 0.875rem;
+            }
+        }
+
+        .log-action-btn {
+            padding: 6px 12px;
+            font-size: 0.8125rem;
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-color);
+        }
+
+        .log-action-btn:hover {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+        }
+
+        .log-action-btn.copy {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .log-action-btn.save {
+            border-color: var(--success-color);
+            color: var(--success-color);
+        }
+
+        .log-action-btn.share {
+            border-color: var(--text-muted);
+            color: var(--text-muted);
+        }
+
+        .log-action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Settings Toggle */
+        .settings-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
+
+        .settings-toggle:hover {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-color: var(--primary-color);
+        }
+
+        .settings-toggle-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .settings-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s;
+        }
+
+        .settings-toggle.active .settings-icon {
+            transform: rotate(90deg);
+        }
+
+        .settings-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            margin-bottom: 0;
+        }
+
+        .settings-panel.open {
+            max-height: 500px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            color: var(--primary-color);
+            font-style: italic;
+            opacity: 0.8;
+        }
+        
+        .error {
+            color: var(--danger-color);
+            background: rgba(239, 68, 68, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* Progress Bar for Segment */
+        .progress-container {
+            width: 100%;
+            background-color: var(--input-bg);
+            height: 6px;
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 0.5s ease-linear;
+            border-radius: 3px;
+        }
+
+        .progress-bar.warning {
+            background-color: var(--warning-color);
+        }
+
+        .progress-bar.danger {
+            background-color: var(--danger-color);
+        }
+
+        /* Rate Limit Display */
+        .rate-limit-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.875rem;
+        }
+
+        .rate-limit-panel.warning {
+            border-color: #fbbf24;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        }
+
+        .rate-limit-panel.danger {
+            border-color: #f87171;
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        }
+
+        .rate-limit-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .rate-limit-header span {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .rate-limit-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        @media (max-width: 640px) {
+            .rate-limit-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .rate-limit-panel {
+                padding: 10px;
+            }
+        }
+
+        .rate-limit-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .rate-limit-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .rate-limit-label {
+            font-size: 0.625rem;
+            color: var(--text-muted);
+        }
+
+        .rate-limit-count {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--text-color);
+        }
+
+        .rate-limit-progress {
+            height: 4px;
+            background-color: var(--input-bg);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .rate-limit-progress-bar {
+            height: 100%;
+            background-color: var(--primary-color);
+            transition: width 0.3s, background-color 0.3s;
+            border-radius: 2px;
+        }
+
+        .rate-limit-progress-bar.warning {
+            background-color: var(--warning-color);
+        }
+
+        .rate-limit-progress-bar.danger {
+            background-color: var(--danger-color);
+        }
+
+        .countdown {
+            font-family: monospace;
+            color: var(--danger-color);
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        .log-header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            gap: 12px;
+        }
+
+        .export-all-btn {
+            padding: 8px 16px;
+            font-size: 0.875rem;
+            background: var(--success-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        .export-all-btn:hover {
+            background: #16a34a;
+        }
+
+        @media (max-width: 640px) {
+            .log-header-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .export-all-btn {
+                width: 100%;
+                padding: 10px;
+            }
+
+            h3 {
+                margin-bottom: 8px;
+            }
+        }
+
+        /* API制限設定のレスポンシブ */
+        @media (max-width: 640px) {
+            .input-group > div[style*="grid"] {
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎙️ Gemini Auto-Split Recorder</h1>
+    
+    <div class="input-group">
+        <div class="settings-toggle" id="apiKeyToggle">
+            <div class="settings-toggle-content">
+                <span class="settings-icon">⚙️</span>
+                <label style="margin: 0; cursor: pointer; font-weight: 500;">APIキー管理</label>
+            </div>
+            <span style="font-size: 0.875rem; color: var(--text-muted); transition: transform 0.3s;">▼</span>
+        </div>
+        <div class="settings-panel" id="apiKeyPanel">
+            <label for="apiKeySelect">APIキー選択</label>
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 8px;">
+                <select id="apiKeySelect" style="width: 100%; padding: 10px; border-radius: 6px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-color);">
+                    <option value="">新しいAPIキーを追加...</option>
+                </select>
+                <button id="btnAddApiKey" style="padding: 10px 16px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap;">➕ 追加</button>
+            </div>
+            <input type="password" id="apiKey" placeholder="AIzaSy..." value="" style="margin-bottom: 8px;">
+            <input type="text" id="apiKeyName" placeholder="APIキー名（例：無料枠、有料API）" value="" style="margin-bottom: 8px;">
+            <div style="display: flex; gap: 8px;">
+                <button id="btnSaveApiKey" style="flex: 1; padding: 10px; background: var(--success-color); color: white; border: none; border-radius: 6px; cursor: pointer;">💾 保存</button>
+                <button id="btnDeleteApiKey" style="flex: 1; padding: 10px; background: var(--danger-color); color: white; border: none; border-radius: 6px; cursor: pointer;">🗑️ 削除</button>
+            </div>
+            <small>※キーはブラウザ内にのみ保存され、外部には送信されません。</small>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <label for="modelSelect">使用モデル</label>
+        <select id="modelSelect" style="width: 100%; padding: 10px; border-radius: 6px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-color);">
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash（無料枠推奨）</option>
+            <option value="gemini-2.5-pro">Gemini 2.5 Pro（有料・高精度）</option>
+            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（軽量）</option>
+        </select>
+        <small>※秘匿性の高い会議モードでは自動的にGemini 2.5 Proが選択されます</small>
+    </div>
+
+    <div class="input-group">
+        <label>録音モード</label>
+        <div class="mode-selector">
+            <div class="mode-option">
+                <input type="radio" id="mode-meeting" name="recordingMode" value="meeting" checked>
+                <label for="mode-meeting">📋 会議録モード<br><small>多人数対応</small></label>
+            </div>
+            <div class="mode-option">
+                <input type="radio" id="mode-medical" name="recordingMode" value="medical">
+                <label for="mode-medical">🏥 病状説明モード<br><small>診察記録</small></label>
+            </div>
+            <div class="mode-option">
+                <input type="radio" id="mode-patient" name="recordingMode" value="patient">
+                <label for="mode-patient">📝 傷病者情報モード<br><small>患者情報</small></label>
+            </div>
+            <div class="mode-option">
+                <input type="radio" id="mode-secure" name="recordingMode" value="secure">
+                <label for="mode-secure">🔒 秘匿性の高い会議<br><small>有料API推奨</small></label>
+            </div>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <div class="settings-toggle" id="settingsToggle">
+            <div class="settings-toggle-content">
+                <span class="settings-icon">⚙️</span>
+                <label style="margin: 0; cursor: pointer; font-weight: 500;">API制限設定</label>
+            </div>
+            <span style="font-size: 0.875rem; color: var(--text-muted); transition: transform 0.3s;">▼</span>
+        </div>
+        <div class="settings-panel" id="settingsPanel">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; background: var(--input-bg); border-radius: 8px; border: 1px solid var(--card-border);">
+                <div>
+                    <label for="rpmLimit" style="font-size: 0.9rem;">RPM（分あたり）:</label>
+                    <input type="number" id="rpmLimit" value="5" min="1" style="width: 100%;">
+                </div>
+                <div>
+                    <label for="rpdLimit" style="font-size: 0.9rem;">RPD（日あたり）:</label>
+                    <input type="number" id="rpdLimit" value="20" min="1" style="width: 100%;">
+                </div>
+            </div>
+            <small style="display: block; margin-top: 8px;">※選択中のAPIキーごとに設定が保存されます。AI Studioの使用状況ページで確認した制限値を入力してください</small>
+        </div>
+    </div>
+
+    <div class="rate-limit-panel" id="rateLimitPanel" style="display: none;">
+        <div class="rate-limit-header">
+            <span>⚠️</span>
+            <span>API使用状況</span>
+        </div>
+        <div class="rate-limit-grid">
+            <div class="rate-limit-item">
+                <div class="rate-limit-item-header">
+                    <span class="rate-limit-label">RPM</span>
+                    <span class="rate-limit-count" id="rpmCount">0/5</span>
+                </div>
+                <div class="rate-limit-progress">
+                    <div class="rate-limit-progress-bar" id="rpmProgressBar"></div>
+                </div>
+            </div>
+            <div class="rate-limit-item">
+                <div class="rate-limit-item-header">
+                    <span class="rate-limit-label">RPD</span>
+                    <span class="rate-limit-count" id="rpdCount">0/20</span>
+                </div>
+                <div class="rate-limit-progress">
+                    <div class="rate-limit-progress-bar" id="rpdProgressBar"></div>
+                </div>
+            </div>
+        </div>
+        <div class="rate-limit-item" id="rpmCountdown" style="display: none; margin-top: 8px;">
+            <span class="rate-limit-label">RPMリセットまで: <span class="countdown" id="rpmCountdownTime">--:--</span></span>
+        </div>
+        <div class="rate-limit-item" id="rpdCountdown" style="display: none; margin-top: 4px;">
+            <span class="rate-limit-label">RPDリセットまで: <span class="countdown" id="rpdCountdownTime">--:--</span></span>
+        </div>
+    </div>
+
+    <div class="status-panel" id="statusPanel">
+        <div>
+            <div class="recording-indicator" id="indicator">⏹</div>
+            <div class="status-info">
+                <p id="statusText">待機中</p>
+                <p>モデル: <span class="model-name" id="modelDisplay">gemini-2.5-flash</span></p>
+            </div>
+        </div>
+        <div class="timer-section">
+            <div class="timer" id="timerDisplay">00:00</div>
+            <div>セグメント #<span id="segmentCounterDisplay">1</span></div>
+        </div>
+    </div>
+    <div class="progress-container" style="margin-top: 16px;">
+        <div class="progress-bar" id="segmentProgress"></div>
+    </div>
+
+    <div class="controls">
+        <button id="btnStart">
+            <span class="btn-icon">🎙️</span>
+            <span>録音開始</span>
+        </button>
+        <button id="btnStop" disabled>
+            <span class="btn-icon">⏹️</span>
+            <span>完全停止</span>
+        </button>
+    </div>
+
+    <div class="log-header-section">
+        <h3 style="margin: 0;">📝 要約ログ</h3>
+        <button id="btnExportAll" class="export-all-btn">📥 全ログをエクスポート</button>
+    </div>
+    <div id="logs">
+        </div>
+</div>
+
+<script>
+/**
+ * Application Core Logic
+ * Handles MediaRecorder, Timer Management, and Gemini API Interaction.
+ */
+class RecorderApp {
+    constructor() {
+        // Configuration
+        this.MODEL_NAME = "gemini-2.5-flash"; // 無料枠で利用可能 
+        this.SEGMENT_LIMIT_MS = 15 * 60 * 1000; // 15 minutes (Safe margin for 20MB limit)
+        // this.SEGMENT_LIMIT_MS = 1 * 60 * 1000; // Debug: 1 minute
+
+        // Rate Limiting
+        this.RPM_LIMIT = 5; // Requests Per Minute (デフォルト値)
+        this.RPD_LIMIT = 20; // Requests Per Day (デフォルト値)
+        this.rpmCount = 0; // 現在の分のリクエスト数
+        this.rpdCount = 0; // 現在の日のリクエスト数
+        this.rpmResetTime = null; // RPMリセット時刻
+        this.rpdResetTime = null; // RPDリセット時刻
+        this.rateLimitInterval = null; // カウントダウン更新用
+
+        // State
+        this.mediaRecorder = null;
+        this.audioChunks = [];
+        this.isRecording = false;
+        this.startTime = null;
+        this.timerInterval = null;
+        this.segmentCounter = 1;
+        this.wakeLock = null; // ★ Wake Lock用の変数を追加
+
+        // DOM Elements
+        this.apiKeyInput = document.getElementById('apiKey');
+        this.apiKeyNameInput = document.getElementById('apiKeyName');
+        this.apiKeySelect = document.getElementById('apiKeySelect');
+        this.btnAddApiKey = document.getElementById('btnAddApiKey');
+        this.btnSaveApiKey = document.getElementById('btnSaveApiKey');
+        this.btnDeleteApiKey = document.getElementById('btnDeleteApiKey');
+        this.modelSelect = document.getElementById('modelSelect');
+        this.btnStart = document.getElementById('btnStart');
+        this.btnStop = document.getElementById('btnStop');
+        this.statusText = document.getElementById('statusText');
+        this.indicator = document.getElementById('indicator');
+        this.timerDisplay = document.getElementById('timerDisplay');
+        this.progressBar = document.getElementById('segmentProgress');
+        this.logsContainer = document.getElementById('logs');
+        this.modeInputs = document.querySelectorAll('input[name="recordingMode"]');
+        this.modelDisplay = document.getElementById('modelDisplay');
+        this.rpmLimitInput = document.getElementById('rpmLimit');
+        this.rpdLimitInput = document.getElementById('rpdLimit');
+        this.rateLimitPanel = document.getElementById('rateLimitPanel');
+        this.settingsToggle = document.getElementById('settingsToggle');
+        this.settingsPanel = document.getElementById('settingsPanel');
+        this.rpmCountDisplay = document.getElementById('rpmCount');
+        this.rpdCountDisplay = document.getElementById('rpdCount');
+        this.rpmCountdownDisplay = document.getElementById('rpmCountdown');
+        this.rpdCountdownDisplay = document.getElementById('rpdCountdown');
+        this.rpmCountdownTime = document.getElementById('rpmCountdownTime');
+        this.rpdCountdownTime = document.getElementById('rpdCountdownTime');
+        this.btnExportAll = document.getElementById('btnExportAll');
+
+        // API Key Management
+        this.apiKeys = this.loadApiKeys();
+        this.currentApiKeyId = null;
+
+        // Bind Events
+        this.btnStart.addEventListener('click', () => this.startRecording());
+        this.btnStop.addEventListener('click', () => this.stopRecording(true));
+        
+        // API Key Management Events
+        this.btnAddApiKey.addEventListener('click', () => this.addNewApiKey());
+        this.btnSaveApiKey.addEventListener('click', () => this.saveApiKey());
+        this.btnDeleteApiKey.addEventListener('click', () => this.deleteApiKey());
+        this.apiKeySelect.addEventListener('change', (e) => this.selectApiKey(e.target.value));
+        this.modelSelect.addEventListener('change', (e) => this.updateModel(e.target.value));
+        
+        // Initialize API Key Management
+        this.initApiKeyManagement();
+        
+        // Load API Key from localStorage (backward compatibility)
+        const savedKey = localStorage.getItem('gemini_api_key');
+        if (savedKey && this.apiKeys.length === 0) {
+            // 既存のAPIキーを移行
+            this.addApiKey('既存のAPIキー', savedKey);
+        }
+        
+        // Load Mode from localStorage
+        const savedMode = localStorage.getItem('recording_mode') || 'meeting';
+        const modeInput = document.querySelector(`input[name="recordingMode"][value="${savedMode}"]`);
+        if (modeInput) modeInput.checked = true;
+        
+        this.modeInputs.forEach(input => {
+            input.addEventListener('change', (e) => {
+                localStorage.setItem('recording_mode', e.target.value);
+                this.handleModeChange();
+            });
+        });
+        
+        // Initial mode change handling
+        this.handleModeChange();
+
+        // Load Rate Limit Settings
+        const savedRpm = localStorage.getItem('rpm_limit');
+        const savedRpd = localStorage.getItem('rpd_limit');
+        if (savedRpm) {
+            this.rpmLimitInput.value = savedRpm;
+            this.RPM_LIMIT = parseInt(savedRpm);
+        }
+        if (savedRpd) {
+            this.rpdLimitInput.value = savedRpd;
+            this.RPD_LIMIT = parseInt(savedRpd);
+        }
+
+        // Load Rate Limit Counts
+        this.loadRateLimitCounts();
+
+        // Update Rate Limit Settings
+        this.rpmLimitInput.addEventListener('change', (e) => {
+            this.RPM_LIMIT = parseInt(e.target.value) || 5;
+            if (this.currentApiKeyId) {
+                const apiKey = this.apiKeys.find(k => k.id === this.currentApiKeyId);
+                if (apiKey) {
+                    apiKey.rpmLimit = this.RPM_LIMIT;
+                    this.saveApiKeys();
+                }
+            } else {
+                localStorage.setItem('rpm_limit', this.RPM_LIMIT);
+            }
+            this.updateRateLimitDisplay();
+        });
+
+        this.rpdLimitInput.addEventListener('change', (e) => {
+            this.RPD_LIMIT = parseInt(e.target.value) || 20;
+            if (this.currentApiKeyId) {
+                const apiKey = this.apiKeys.find(k => k.id === this.currentApiKeyId);
+                if (apiKey) {
+                    apiKey.rpdLimit = this.RPD_LIMIT;
+                    this.saveApiKeys();
+                }
+            } else {
+                localStorage.setItem('rpd_limit', this.RPD_LIMIT);
+            }
+            this.updateRateLimitDisplay();
+        });
+
+        // Start Rate Limit Countdown Timer
+        this.startRateLimitCountdown();
+
+        // Export All Logs Button
+        if (this.btnExportAll) {
+            this.btnExportAll.addEventListener('click', () => this.exportAllLogs());
+        }
+
+        // Update Model Display
+        this.updateModelDisplay();
+
+        // Settings Toggle
+        if (this.settingsToggle) {
+            this.settingsToggle.addEventListener('click', () => {
+                this.settingsPanel.classList.toggle('open');
+                this.settingsToggle.classList.toggle('active');
+                const arrow = this.settingsToggle.querySelector('span:last-child');
+                if (arrow) {
+                    arrow.style.transform = this.settingsPanel.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+            });
+        }
+
+        // API Key Management Panel Toggle
+        const apiKeyToggle = document.getElementById('apiKeyToggle');
+        const apiKeyPanel = document.getElementById('apiKeyPanel');
+        if (apiKeyToggle && apiKeyPanel) {
+            apiKeyToggle.addEventListener('click', () => {
+                apiKeyPanel.classList.toggle('open');
+                apiKeyToggle.classList.toggle('active');
+                const arrow = apiKeyToggle.querySelector('span:last-child');
+                if (arrow) {
+                    arrow.style.transform = apiKeyPanel.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+            });
+        }
+    }
+
+    /**
+     * Starts the recording process.
+     * Requests microphone access and sets up the MediaRecorder.
+     */
+    async startRecording() {
+        const apiKey = this.getCurrentApiKey();
+        if (!apiKey) {
+            alert('APIキーを入力してください。');
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Setup MediaRecorder
+            this.setupRecorder(stream);
+            
+            // ★ 画面の常時点灯をリクエスト
+            try {
+                if ('wakeLock' in navigator) {
+                    this.wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Screen Wake Lock active');
+                }
+            } catch (err) {
+                console.error('Wake Lock error:', err);
+            }
+            
+            // Start
+            this.mediaRecorder.start();
+            this.isRecording = true;
+            this.startTime = Date.now();
+            this.updateUIState(true);
+            this.startTimer();
+            
+            console.log(`Segment ${this.segmentCounter} started.`);
+
+        } catch (err) {
+            console.error('Error accessing microphone:', err);
+            alert('マイクへのアクセスに失敗しました。設定を確認してください。');
+        }
+    }
+
+    /**
+     * Configures the MediaRecorder instance.
+     */
+    setupRecorder(stream) {
+        // Preferred MIME type for Gemini
+        const mimeType = 'audio/webm'; 
+        this.mediaRecorder = new MediaRecorder(stream, { mimeType });
+        this.audioChunks = [];
+
+        this.mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                this.audioChunks.push(event.data);
+            }
+        };
+
+        this.mediaRecorder.onstop = () => {
+            // Create Blob from chunks
+            const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+            
+            // Process this segment
+            this.processAudioSegment(audioBlob, this.segmentCounter);
+
+            // Prepare for next segment if we are essentially still "recording" (auto-split)
+            if (this.isRecording) {
+                this.segmentCounter++;
+                this.audioChunks = [];
+                this.startTime = Date.now(); // Reset timer base
+                this.mediaRecorder.start(); // Restart immediately
+                console.log(`Segment ${this.segmentCounter} started (Auto-split).`);
+            }
+        };
+    }
+
+    /**
+     * Stops the recording.
+     * @param {boolean} fullStop - If true, stops completely. If false, it's a segment split.
+     */
+    stopRecording(fullStop = false) {
+        if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') return;
+
+        if (fullStop) {
+            this.isRecording = false; // Stop the loop
+            this.updateUIState(false);
+            this.stopTimer();
+            
+            // ★ 常時点灯を解除（バッテリー節約のため）
+            if (this.wakeLock) {
+                this.wakeLock.release()
+                    .then(() => {
+                        this.wakeLock = null;
+                        console.log('Screen Wake Lock released');
+                    });
+            }
+        }
+        
+        // This triggers onstop, which handles processing and potential restarting
+        this.mediaRecorder.stop(); 
+    }
+
+    /**
+     * Timer Logic: Updates display and checks for Auto-Split condition.
+     */
+    startTimer() {
+        this.stopTimer(); // Clear existing
+        this.timerInterval = setInterval(() => {
+            const elapsed = Date.now() - this.startTime;
+            
+            // Update Display (MM:SS)
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            this.timerDisplay.textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+            // Update Progress Bar
+            const progress = Math.min((elapsed / this.SEGMENT_LIMIT_MS) * 100, 100);
+            this.progressBar.style.width = `${progress}%`;
+
+            // Check Auto-Split Condition
+            if (elapsed >= this.SEGMENT_LIMIT_MS) {
+                console.log("Time limit reached. Auto-splitting...");
+                this.stopRecording(false); // False means "don't fully stop, just split"
+            }
+
+        }, 1000);
+    }
+
+    stopTimer() {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        this.timerDisplay.textContent = "00:00";
+        this.progressBar.style.width = "0%";
+    }
+
+    updateUIState(isRecording) {
+        this.btnStart.disabled = isRecording;
+        this.btnStop.disabled = !isRecording;
+        this.statusText.textContent = isRecording ? "録音中" : "待機中";
+        this.segmentCounterDisplay.textContent = this.segmentCounter;
+        
+        if (isRecording) {
+            this.indicator.classList.add('active');
+            this.indicator.textContent = '🎙️';
+            if (this.statusPanel) {
+                this.statusPanel.classList.add('recording');
+            }
+        } else {
+            this.indicator.classList.remove('active');
+            this.indicator.textContent = '⏹';
+            if (this.statusPanel) {
+                this.statusPanel.classList.remove('recording');
+            }
+        }
+    }
+
+    /**
+     * Update model display
+     */
+    updateModelDisplay() {
+        if (this.modelDisplay) {
+            this.modelDisplay.textContent = this.MODEL_NAME;
+        }
+        if (this.modelSelect) {
+            this.modelSelect.value = this.MODEL_NAME;
+        }
+    }
+
+    /**
+     * API Key Management Methods
+     */
+    loadApiKeys() {
+        const saved = localStorage.getItem('api_keys');
+        if (saved) {
+            return JSON.parse(saved);
+        }
+        return [];
+    }
+
+    saveApiKeys() {
+        localStorage.setItem('api_keys', JSON.stringify(this.apiKeys));
+    }
+
+    initApiKeyManagement() {
+        this.updateApiKeySelect();
+        if (this.apiKeys.length > 0) {
+            const lastUsed = localStorage.getItem('last_used_api_key_id');
+            if (lastUsed && this.apiKeys.find(k => k.id === lastUsed)) {
+                this.selectApiKey(lastUsed);
+            } else {
+                this.selectApiKey(this.apiKeys[0].id);
+            }
+        }
+    }
+
+    updateApiKeySelect() {
+        this.apiKeySelect.innerHTML = '<option value="">新しいAPIキーを追加...</option>';
+        this.apiKeys.forEach(key => {
+            const option = document.createElement('option');
+            option.value = key.id;
+            option.textContent = `${key.name} (${key.model || '未設定'})`;
+            this.apiKeySelect.appendChild(option);
+        });
+    }
+
+    addNewApiKey() {
+        this.apiKeyInput.value = '';
+        this.apiKeyNameInput.value = '';
+        this.apiKeySelect.value = '';
+        this.currentApiKeyId = null;
+    }
+
+    addApiKey(name, key, model = null) {
+        const id = Date.now().toString();
+        const apiKey = {
+            id,
+            name: name || 'APIキー',
+            key,
+            model: model || 'gemini-2.5-flash',
+            rpmLimit: 5,
+            rpdLimit: 20
+        };
+        this.apiKeys.push(apiKey);
+        this.saveApiKeys();
+        this.updateApiKeySelect();
+        this.selectApiKey(id);
+        return id;
+    }
+
+    saveApiKey() {
+        const key = this.apiKeyInput.value.trim();
+        const name = this.apiKeyNameInput.value.trim() || 'APIキー';
+        
+        if (!key) {
+            alert('APIキーを入力してください');
+            return;
+        }
+
+        if (this.currentApiKeyId) {
+            // 既存のAPIキーを更新
+            const apiKey = this.apiKeys.find(k => k.id === this.currentApiKeyId);
+            if (apiKey) {
+                apiKey.name = name;
+                apiKey.key = key;
+                apiKey.model = this.modelSelect.value;
+                apiKey.rpmLimit = parseInt(this.rpmLimitInput.value) || 5;
+                apiKey.rpdLimit = parseInt(this.rpdLimitInput.value) || 20;
+            }
+        } else {
+            // 新しいAPIキーを追加
+            this.addApiKey(name, key, this.modelSelect.value);
+        }
+        
+        this.saveApiKeys();
+        this.updateApiKeySelect();
+        alert('APIキーを保存しました');
+    }
+
+    deleteApiKey() {
+        if (!this.currentApiKeyId) {
+            alert('削除するAPIキーを選択してください');
+            return;
+        }
+
+        if (!confirm('このAPIキーを削除しますか？')) {
+            return;
+        }
+
+        this.apiKeys = this.apiKeys.filter(k => k.id !== this.currentApiKeyId);
+        this.saveApiKeys();
+        this.updateApiKeySelect();
+        this.addNewApiKey();
+        
+        if (this.apiKeys.length > 0) {
+            this.selectApiKey(this.apiKeys[0].id);
+        }
+    }
+
+    selectApiKey(id) {
+        if (!id) {
+            this.addNewApiKey();
+            return;
+        }
+
+        const apiKey = this.apiKeys.find(k => k.id === id);
+        if (!apiKey) return;
+
+        this.currentApiKeyId = id;
+        this.apiKeyInput.value = apiKey.key;
+        this.apiKeyNameInput.value = apiKey.name;
+        this.apiKeySelect.value = id;
+        this.modelSelect.value = apiKey.model || 'gemini-2.5-flash';
+        this.rpmLimitInput.value = apiKey.rpmLimit || 5;
+        this.rpdLimitInput.value = apiKey.rpdLimit || 20;
+        
+        this.MODEL_NAME = apiKey.model || 'gemini-2.5-flash';
+        this.RPM_LIMIT = apiKey.rpmLimit || 5;
+        this.RPD_LIMIT = apiKey.rpdLimit || 20;
+        
+        this.updateModelDisplay();
+        this.updateRateLimitDisplay();
+        
+        localStorage.setItem('last_used_api_key_id', id);
+    }
+
+    getCurrentApiKey() {
+        if (this.currentApiKeyId) {
+            const apiKey = this.apiKeys.find(k => k.id === this.currentApiKeyId);
+            if (apiKey) return apiKey.key;
+        }
+        return this.apiKeyInput.value.trim();
+    }
+
+    updateModel(modelName) {
+        this.MODEL_NAME = modelName;
+        this.updateModelDisplay();
+        if (this.currentApiKeyId) {
+            const apiKey = this.apiKeys.find(k => k.id === this.currentApiKeyId);
+            if (apiKey) {
+                apiKey.model = modelName;
+                this.saveApiKeys();
+            }
+        }
+    }
+
+    handleModeChange() {
+        const selectedMode = document.querySelector('input[name="recordingMode"]:checked')?.value;
+        
+        if (selectedMode === 'secure') {
+            // 秘匿性の高い会議モード: 自動的に有料APIとgemini-2.5-proを選択
+            // 有料APIキーを探す（名前に「有料」「paid」「pro」などが含まれる）
+            const paidApiKey = this.apiKeys.find(k => 
+                k.name.toLowerCase().includes('有料') || 
+                k.name.toLowerCase().includes('paid') || 
+                k.name.toLowerCase().includes('pro')
+            );
+            
+            if (paidApiKey) {
+                this.selectApiKey(paidApiKey.id);
+            }
+            
+            // モデルをgemini-2.5-proに変更
+            if (this.modelSelect.value !== 'gemini-2.5-pro') {
+                this.updateModel('gemini-2.5-pro');
+            }
+        }
+    }
+
+    /**
+     * Gets the prompt template based on selected mode.
+     */
+    getPromptTemplate() {
+        const selectedMode = document.querySelector('input[name="recordingMode"]:checked').value;
+        
+        const prompts = {
+            secure: `
+あなたは優秀な会議の書記官です。提供された音声データを分析し、以下のフォーマットに厳格に従って日本語で議事録を作成してください。
+
+# 役割と制約
+- 「えー」「あー」などのフィラーや、無関係な雑談は除外すること。
+- 話者が複数いる場合は、文脈から推測して発言の意図を汲み取ること。
+- 専門用語や固有名詞は可能な限り正確に記述すること。
+- マークダウン形式で見やすく整形すること。
+- 秘匿性の高い会議のため、特に機密情報の取り扱いに注意すること。
+
+# 個人情報保護（必須・強化）
+以下の個人情報は必ず削除または匿名化してください：
+- 氏名、フルネーム、イニシャル、ニックネーム（「Aさん」「B氏」などに置換）
+- 住所、郵便番号、具体的な地名（「○○県」「○○市」などに置換）
+- 電話番号、メールアドレス、SNSアカウント
+- 生年月日、年齢（「30代」「40代」などに置換）
+- 会社名、組織名（「A社」「B組織」などに置換）
+- その他、個人を特定できる情報
+
+# 出力フォーマット
+## 会議概要
+- **日時**: [日時]
+- **参加者数**: [人数]
+- **主な議題**: [議題の要約]
+
+## 議事録
+[時系列で整理された議事録]
+
+## 決定事項
+- [決定事項1]
+- [決定事項2]
+
+## アクションアイテム
+- [担当者（匿名化）]: [タスク内容]
+- [担当者（匿名化）]: [タスク内容]
+
+## 次回予定
+[次回会議の予定（個人情報は匿名化）]
+`,
+            meeting: `
+あなたは優秀な会議の書記官です。提供された音声データを分析し、以下のフォーマットに厳格に従って日本語で議事録を作成してください。
+
+# 役割と制約
+- 「えー」「あー」などのフィラーや、無関係な雑談は除外すること。
+- 話者が複数いる場合は、文脈から推測して発言の意図を汲み取ること。
+- 専門用語や固有名詞は可能な限り正確に記述すること。
+- マークダウン形式で見やすく整形すること。
+
+# 個人情報保護（必須）
+以下の個人情報は必ず削除または匿名化してください：
+- 氏名、フルネーム、イニシャル、ニックネーム（「Aさん」「B氏」などに置換）
+- 住所、郵便番号、具体的な地名（「○○県」「○○市」などに置換）
+- 電話番号、メールアドレス、SNSアカウント
+- 生年月日、年齢（必要に応じて年代のみ記載）
+- 勤務先、学校名、組織名（「○○会社」「○○大学」などに置換）
+- その他個人を特定できる情報（ID番号、免許証番号など）
+- 個人情報が含まれる場合は、該当箇所を「[個人情報削除]」と記載すること
+
+# 出力フォーマット
+
+## 1. 🎯 概要 (Executive Summary)
+会議の目的と、決定された結論を3行以内で要約してください。
+
+## 2. 🧠 主要トピック (Mind Map Style)
+議論された内容を論理的な階層構造（箇条書き）で整理してください。
+- トピックA
+  - 詳細事実
+  - 議論のポイント
+- トピックB
+  - 詳細事実
+  - 懸念点
+
+## 3. ✅ 決定事項 (Decisions)
+- [決定] 確定した事項をここに書く
+- [保留] 保留となった事項をここに書く
+
+## 4. 🚀 ネクストアクション (To-Do)
+誰が、いつまでに、何をやるかを抽出してください。不明な場合は「担当者未定」としてタスクのみ記載すること。
+- [ ] タスク内容 (担当: 〇〇 / 期限: 〇〇)
+
+---
+(以下、音声が途中から始まっている場合は文脈を補完して要約してください)
+`,
+            medical: `
+あなたは熟練した医療クラークです。医師による患者・家族への病状説明（インフォームド・コンセント）の録音データを分析し、電子カルテにそのまま転記できる形式で要約を作成してください。
+
+# 役割と重要事項
+- **目的**: 説明内容の記録および、患者・家族の「理解度」と「同意」の有無を明確にすること。
+- **用語**: 専門用語は正確に漢字・英語で記載すること（例: 心不全→HF、肺炎→Pneumonia）。
+- **除外**: 「あー」「えー」などのフィラー、無関係な世間話。
+- **推論**: 誰がキーパーソン（決定権者）かを文脈から推測し、その発言を重視すること。
+
+# 個人情報保護（必須・最重要）
+以下の個人情報は必ず削除または匿名化してください：
+- 患者・家族の氏名（「本人」「長男」「妻」などに置換）
+- 具体的な地名、病院名、日付（「当院」「X日」などに置換）
+
+# 出力フォーマット
+
+## 1. 👥 参加者 (Participants)
+- **説明者**: [医師名/職種]、[同席看護師など]
+- **対象者**: [本人]、[キーパーソン（続柄）]、[その他同席者]
+
+## 2. 📋 説明内容 (Explanation Summary)
+医師が説明した以下の項目を簡潔にまとめてください。
+- **現在の病状・診断**: [診断名と現状]
+- **提案された治療・方針**: [治療内容]
+- **メリット・期待される効果**: [内容]
+- **デメリット・リスク・合併症**: [具体的なリスク]
+- **代替案の提示**: [あれば記載、なければ「なし」]
+
+## 3. 🗣️ 質疑応答と反応 (Q&A & Reaction)
+ここが最も重要です。家族からの質問と、それに対する回答、および家族の感情的な反応（納得、不安、拒絶など）を記載してください。
+- **質問**: [家族の質問内容]
+  - **回答**: [医師の回答]
+- **家族の反応**: [「理解した様子」「強い不安を示した」「持ち帰って検討したい」など]
+
+## 4. ✅ 結論 (Conclusion)
+- [ ] 方針に同意（署名取得/口頭同意）
+- [ ] 持ち帰って検討
+- [ ] セカンドオピニオン希望
+- [ ] その他: [詳細]
+
+## 5. 📝 補足・特記事項
+（録音状況が悪かった場合や、特に記録しておくべきトラブルの予兆など）
+
+---
+(以下、音声が途中から始まっている場合は文脈を補完して記録してください)
+`,
+            patient: `
+あなたは優秀な医療記録の専門家です。提供された音声データを分析し、以下のフォーマットに厳格に従って日本語で傷病者情報を整理してください。
+
+# 役割と制約
+- 「えー」「あー」などのフィラーや、無関係な雑談は除外すること。
+- 医療情報は正確に記録することが重要ですが、個人を特定できる情報は一切記録しないこと。
+- 緊急性の判断に必要な情報を優先的に抽出すること。
+- マークダウン形式で見やすく整形すること。
+
+# 個人情報保護（必須・最重要）
+以下の個人情報は必ず削除または匿名化してください：
+- 傷病者の氏名、フルネーム、イニシャル（「傷病者A」「傷病者B」などに置換）
+- 住所、郵便番号、具体的な地名（「○○県」「○○市」などに置換）
+- 電話番号、メールアドレス、連絡先情報
+- 生年月日、年齢（必要に応じて年代のみ記載、例：「30代女性」）
+- 勤務先、学校名、組織名（「○○会社」「○○大学」などに置換）
+- 患者ID、カルテ番号、その他識別番号
+- 家族構成や家族の個人情報
+- その他個人を特定できる情報
+- 個人情報が含まれる場合は、該当箇所を「[個人情報削除]」と記載すること
+- 医療情報（症状、状態など）は記録しますが、個人を特定できる情報は一切含めないこと
+
+# 出力フォーマット
+
+## 1. 👤 基本情報 (Basic Information)
+- 年齢・性別（言及されている場合）
+- 受傷・発症の日時・場所
+- 状況・経緯
+
+## 2. 🚨 現状・症状 (Current Condition / Symptoms)
+- 現在の状態（意識レベル、バイタルサインなど）
+- 主な症状・訴え
+- 外傷の有無とその詳細（部位、程度）
+
+## 3. 🏥 既往歴・アレルギー (Medical History / Allergies)
+- 既往疾患（言及されている場合）
+- アレルギー歴（薬剤、食物など）
+- 常用薬（言及されている場合）
+
+## 4. ⚠️ 緊急度・対応 (Urgency / Response)
+- 緊急度の評価
+- 必要な対応・処置
+- 搬送先・受診先の情報（言及されている場合）
+
+## 5. 📝 その他 (Additional Information)
+その他、重要な情報があれば記載してください。
+
+---
+(以下、音声が途中から始まっている場合は文脈を補完して要約してください)
+`
+        };
+        
+        return prompts[selectedMode] || prompts.meeting;
+    }
+
+    /**
+     * Check if rate limit is exceeded
+     */
+    checkRateLimit() {
+        const now = Date.now();
+        
+        // Check RPM
+        if (this.rpmResetTime && now < this.rpmResetTime) {
+            if (this.rpmCount >= this.RPM_LIMIT) {
+                const waitTime = Math.ceil((this.rpmResetTime - now) / 1000);
+                throw new Error(`RPM制限に達しました。${waitTime}秒後に再試行してください。`);
+            }
+        } else {
+            // Reset RPM counter
+            this.rpmCount = 0;
+            this.rpmResetTime = now + 60 * 1000; // 1分後
+        }
+
+        // Check RPD
+        if (this.rpdResetTime && now < this.rpdResetTime) {
+            if (this.rpdCount >= this.RPD_LIMIT) {
+                const waitTime = Math.ceil((this.rpdResetTime - now) / 1000);
+                const waitHours = Math.floor(waitTime / 3600);
+                const waitMinutes = Math.floor((waitTime % 3600) / 60);
+                throw new Error(`RPD制限に達しました。${waitHours}時間${waitMinutes}分後に再試行してください。`);
+            }
+        } else {
+            // Reset RPD counter (next midnight)
+            const tomorrow = new Date();
+            tomorrow.setHours(24, 0, 0, 0);
+            this.rpdResetTime = tomorrow.getTime();
+            this.rpdCount = 0;
+        }
+
+        return true;
+    }
+
+    /**
+     * Increment rate limit counters
+     */
+    incrementRateLimit() {
+        this.rpmCount++;
+        this.rpdCount++;
+        this.saveRateLimitCounts();
+        this.updateRateLimitDisplay();
+    }
+
+    /**
+     * Load rate limit counts from localStorage
+     */
+    loadRateLimitCounts() {
+        const saved = localStorage.getItem('rate_limit_counts');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                const now = Date.now();
+                
+                // Check if RPM reset time has passed
+                if (data.rpmResetTime && now >= data.rpmResetTime) {
+                    this.rpmCount = 0;
+                    this.rpmResetTime = now + 60 * 1000;
+                } else {
+                    this.rpmCount = data.rpmCount || 0;
+                    this.rpmResetTime = data.rpmResetTime || (now + 60 * 1000);
+                }
+
+                // Check if RPD reset time has passed
+                if (data.rpdResetTime && now >= data.rpdResetTime) {
+                    this.rpdCount = 0;
+                    const tomorrow = new Date();
+                    tomorrow.setHours(24, 0, 0, 0);
+                    this.rpdResetTime = tomorrow.getTime();
+                } else {
+                    this.rpdCount = data.rpdCount || 0;
+                    this.rpdResetTime = data.rpdResetTime || (() => {
+                        const tomorrow = new Date();
+                        tomorrow.setHours(24, 0, 0, 0);
+                        return tomorrow.getTime();
+                    })();
+                }
+            } catch (e) {
+                console.error('Failed to load rate limit counts:', e);
+            }
+        } else {
+            // Initialize
+            const now = Date.now();
+            this.rpmResetTime = now + 60 * 1000;
+            const tomorrow = new Date();
+            tomorrow.setHours(24, 0, 0, 0);
+            this.rpdResetTime = tomorrow.getTime();
+        }
+        this.updateRateLimitDisplay();
+    }
+
+    /**
+     * Save rate limit counts to localStorage
+     */
+    saveRateLimitCounts() {
+        const data = {
+            rpmCount: this.rpmCount,
+            rpdCount: this.rpdCount,
+            rpmResetTime: this.rpmResetTime,
+            rpdResetTime: this.rpdResetTime
+        };
+        localStorage.setItem('rate_limit_counts', JSON.stringify(data));
+    }
+
+    /**
+     * Update rate limit display
+     */
+    updateRateLimitDisplay() {
+        if (!this.rateLimitPanel) return;
+
+        // Update counts
+        this.rpmCountDisplay.textContent = `${this.rpmCount}/${this.RPM_LIMIT}`;
+        this.rpdCountDisplay.textContent = `${this.rpdCount}/${this.RPD_LIMIT}`;
+
+        // Calculate percentages
+        const rpmPercent = (this.rpmCount / this.RPM_LIMIT) * 100;
+        const rpdPercent = (this.rpdCount / this.RPD_LIMIT) * 100;
+
+        // Update progress bars
+        if (this.rpmProgressBar) {
+            this.rpmProgressBar.style.width = `${Math.min(rpmPercent, 100)}%`;
+            this.rpmProgressBar.classList.remove('warning', 'danger');
+            if (rpmPercent >= 90) {
+                this.rpmProgressBar.classList.add('danger');
+            } else if (rpmPercent >= 70) {
+                this.rpmProgressBar.classList.add('warning');
+            }
+        }
+
+        if (this.rpdProgressBar) {
+            this.rpdProgressBar.style.width = `${Math.min(rpdPercent, 100)}%`;
+            this.rpdProgressBar.classList.remove('warning', 'danger');
+            if (rpdPercent >= 90) {
+                this.rpdProgressBar.classList.add('danger');
+            } else if (rpdPercent >= 70) {
+                this.rpdProgressBar.classList.add('warning');
+            }
+        }
+
+        // Update panel colors
+        if (rpmPercent >= 90 || rpdPercent >= 90) {
+            this.rateLimitPanel.className = 'rate-limit-panel danger';
+        } else if (rpmPercent >= 70 || rpdPercent >= 70) {
+            this.rateLimitPanel.className = 'rate-limit-panel warning';
+        } else {
+            this.rateLimitPanel.className = 'rate-limit-panel';
+        }
+
+        // Show panel if there are any requests
+        if (this.rpmCount > 0 || this.rpdCount > 0) {
+            this.rateLimitPanel.style.display = 'block';
+        }
+    }
+
+    /**
+     * Start rate limit countdown timer
+     */
+    startRateLimitCountdown() {
+        if (this.rateLimitInterval) {
+            clearInterval(this.rateLimitInterval);
+        }
+
+        this.rateLimitInterval = setInterval(() => {
+            const now = Date.now();
+            
+            // RPM countdown
+            if (this.rpmResetTime && now < this.rpmResetTime) {
+                const seconds = Math.ceil((this.rpmResetTime - now) / 1000);
+                const minutes = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                this.rpmCountdownTime.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
+                this.rpmCountdownDisplay.style.display = 'flex';
+            } else {
+                this.rpmCountdownDisplay.style.display = 'none';
+            }
+
+            // RPD countdown
+            if (this.rpdResetTime && now < this.rpdResetTime) {
+                const seconds = Math.ceil((this.rpdResetTime - now) / 1000);
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = seconds % 60;
+                this.rpdCountdownTime.textContent = `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                this.rpdCountdownDisplay.style.display = 'flex';
+            } else {
+                this.rpdCountdownDisplay.style.display = 'none';
+            }
+
+            this.updateRateLimitDisplay();
+        }, 1000);
+    }
+
+    /**
+     * Sends audio to Gemini API and displays result.
+     */
+    async processAudioSegment(blob, segmentId) {
+        // Create UI Log Entry
+        const logId = `log-${segmentId}`;
+        const timestamp = new Date().toLocaleTimeString();
+        
+        const logHtml = `
+            <div class="log-entry" id="${logId}">
+                <div class="log-header">
+                    <strong>セグメント #${segmentId}</strong>
+                    <span>${timestamp}</span>
+                </div>
+                <div class="log-content loading">Geminiへ送信中... 音声処理には時間がかかります...</div>
+                <div class="log-actions" style="display: none;">
+                    <button class="log-action-btn copy" onclick="app.copyLog('${logId}', this)">📋 コピー</button>
+                    <button class="log-action-btn save" onclick="app.saveLog('${logId}', ${segmentId}, '${timestamp}')">💾 保存</button>
+                    <button class="log-action-btn share" onclick="app.shareLog('${logId}', ${segmentId}, '${timestamp}')">🔗 共有</button>
+                </div>
+            </div>
+        `;
+        this.logsContainer.insertAdjacentHTML('afterbegin', logHtml);
+        const contentDiv = document.querySelector(`#${logId} .log-content`);
+
+        try {
+            // Check rate limit before making request
+            this.checkRateLimit();
+
+            // Convert Blob to Base64
+            const base64Audio = await this.blobToBase64(blob);
+
+            // Prepare API Request
+            const apiKey = this.getCurrentApiKey();
+            if (!apiKey) {
+                throw new Error('APIキーが設定されていません');
+            }
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.MODEL_NAME}:generateContent?key=${apiKey}`;
+
+            // Get prompt based on selected mode
+            const promptText = this.getPromptTemplate();
+
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: promptText },
+                        {
+                            inline_data: {
+                                mime_type: "audio/webm",
+                                data: base64Audio
+                            }
+                        }
+                    ]
+                }]
+            };
+
+            // Fetch
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error.message);
+            }
+
+            // Increment rate limit counters after successful request
+            this.incrementRateLimit();
+
+            // Display Result
+            const markdown = data.candidates[0].content.parts[0].text;
+            contentDiv.classList.remove('loading');
+            contentDiv.innerHTML = this.simpleMarkdownParse(markdown); // Simple format for prototype
+            
+            // Show action buttons after content is loaded
+            const actionsDiv = document.querySelector(`#${logId} .log-actions`);
+            if (actionsDiv) {
+                actionsDiv.style.display = 'flex';
+            }
+            
+            // Store raw markdown for export
+            contentDiv.dataset.rawMarkdown = markdown;
+
+        } catch (err) {
+            contentDiv.classList.remove('loading');
+            contentDiv.classList.add('error');
+            contentDiv.textContent = `エラーが発生しました: ${err.message}`;
+            console.error(err);
+        }
+    }
+
+    // Helper: Convert Blob to Base64 (strip header)
+    blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result.split(',')[1];
+                resolve(base64String);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    // Helper: Very simple Markdown to HTML for display
+    simpleMarkdownParse(text) {
+        return text
+            .replace(/^# (.*$)/gim, '<strong>$1</strong>')
+            .replace(/^## (.*$)/gim, '<strong>$1</strong>')
+            .replace(/^\* (.*$)/gim, '• $1')
+            .replace(/\n/g, '<br>');
+    }
+
+    /**
+     * Copy log content to clipboard
+     */
+    async copyLog(logId, buttonElement) {
+        try {
+            const logEntry = document.getElementById(logId);
+            if (!logEntry) return;
+
+            const contentDiv = logEntry.querySelector('.log-content');
+            const rawMarkdown = contentDiv.dataset.rawMarkdown || contentDiv.textContent;
+            
+            await navigator.clipboard.writeText(rawMarkdown);
+            
+            // Show feedback
+            if (buttonElement) {
+                const originalText = buttonElement.textContent;
+                buttonElement.textContent = '✓ コピー済み';
+                buttonElement.style.background = '#d4edda';
+                setTimeout(() => {
+                    buttonElement.textContent = originalText;
+                    buttonElement.style.background = '';
+                }, 2000);
+            }
+        } catch (err) {
+            console.error('Failed to copy:', err);
+            alert('コピーに失敗しました。');
+        }
+    }
+
+    /**
+     * Save log as text file
+     */
+    saveLog(logId, segmentId, timestamp) {
+        try {
+            const logEntry = document.getElementById(logId);
+            if (!logEntry) return;
+
+            const contentDiv = logEntry.querySelector('.log-content');
+            const rawMarkdown = contentDiv.dataset.rawMarkdown || contentDiv.textContent;
+            
+            const filename = `要約_セグメント${segmentId}_${timestamp.replace(/:/g, '-')}.txt`;
+            const blob = new Blob([rawMarkdown], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Failed to save:', err);
+            alert('保存に失敗しました。');
+        }
+    }
+
+    /**
+     * Share log as JSON file (includes metadata)
+     */
+    shareLog(logId, segmentId, timestamp) {
+        try {
+            const logEntry = document.getElementById(logId);
+            if (!logEntry) return;
+
+            const contentDiv = logEntry.querySelector('.log-content');
+            const rawMarkdown = contentDiv.dataset.rawMarkdown || contentDiv.textContent;
+            
+            const logData = {
+                segmentId: segmentId,
+                timestamp: timestamp,
+                date: new Date().toISOString(),
+                mode: document.querySelector('input[name="recordingMode"]:checked').value,
+                content: rawMarkdown
+            };
+            
+            const filename = `要約_セグメント${segmentId}_${timestamp.replace(/:/g, '-')}.json`;
+            const blob = new Blob([JSON.stringify(logData, null, 2)], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Failed to share:', err);
+            alert('共有ファイルの生成に失敗しました。');
+        }
+    }
+
+    /**
+     * Export all logs as a single file
+     */
+    exportAllLogs() {
+        try {
+            const logEntries = document.querySelectorAll('.log-entry');
+            if (logEntries.length === 0) {
+                alert('エクスポートするログがありません。');
+                return;
+            }
+
+            const allLogs = [];
+            const selectedMode = document.querySelector('input[name="recordingMode"]:checked').value;
+            
+            logEntries.forEach(entry => {
+                const header = entry.querySelector('.log-header');
+                const contentDiv = entry.querySelector('.log-content');
+                
+                if (!contentDiv || contentDiv.classList.contains('loading')) return;
+                
+                const segmentMatch = header.textContent.match(/セグメント #(\d+)/);
+                const timeMatch = header.textContent.match(/(\d{1,2}:\d{2}:\d{2})/);
+                
+                if (segmentMatch && timeMatch) {
+                    const rawMarkdown = contentDiv.dataset.rawMarkdown || contentDiv.textContent;
+                    allLogs.push({
+                        segmentId: parseInt(segmentMatch[1]),
+                        timestamp: timeMatch[1],
+                        content: rawMarkdown
+                    });
+                }
+            });
+
+            // Sort by segmentId
+            allLogs.sort((a, b) => a.segmentId - b.segmentId);
+
+            const exportData = {
+                exportDate: new Date().toISOString(),
+                mode: selectedMode,
+                totalSegments: allLogs.length,
+                logs: allLogs
+            };
+
+            const filename = `要約ログ_全${allLogs.length}件_${new Date().toISOString().split('T')[0]}.json`;
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Failed to export:', err);
+            alert('エクスポートに失敗しました。');
+        }
+    }
+}
+
+// Initialize
+let app;
+window.addEventListener('DOMContentLoaded', () => {
+    app = new RecorderApp();
+    
+    // Service Worker登録
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js')
+            .then(registration => {
+                console.log('Service Worker registered:', registration);
+            })
+            .catch(error => {
+                console.error('Service Worker registration failed:', error);
+            });
+    }
+});
+</script>
+</body>
+</html>
