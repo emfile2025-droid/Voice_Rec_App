@@ -996,6 +996,7 @@ class RecorderApp {
         this.statusText = document.getElementById('statusText');
         this.indicator = document.getElementById('indicator');
         this.timerDisplay = document.getElementById('timerDisplay');
+        this.segmentCounterDisplay = document.getElementById('segmentCounterDisplay');
         this.progressBar = document.getElementById('segmentProgress');
         this.logsContainer = document.getElementById('logs');
         this.modeInputs = document.querySelectorAll('input[name="recordingMode"]');
@@ -1012,21 +1013,24 @@ class RecorderApp {
         this.rpmCountdownTime = document.getElementById('rpmCountdownTime');
         this.rpdCountdownTime = document.getElementById('rpdCountdownTime');
         this.btnExportAll = document.getElementById('btnExportAll');
+        this.statusPanel = document.getElementById('statusPanel');
+        this.rpmProgressBar = document.getElementById('rpmProgressBar');
+        this.rpdProgressBar = document.getElementById('rpdProgressBar');
 
         // API Key Management
         this.apiKeys = this.loadApiKeys();
         this.currentApiKeyId = null;
 
         // Bind Events
-        this.btnStart.addEventListener('click', () => this.startRecording());
-        this.btnStop.addEventListener('click', () => this.stopRecording(true));
+        if (this.btnStart) this.btnStart.addEventListener('click', () => this.startRecording());
+        if (this.btnStop) this.btnStop.addEventListener('click', () => this.stopRecording(true));
         
         // API Key Management Events
-        this.btnAddApiKey.addEventListener('click', () => this.addNewApiKey());
-        this.btnSaveApiKey.addEventListener('click', () => this.saveApiKey());
-        this.btnDeleteApiKey.addEventListener('click', () => this.deleteApiKey());
-        this.apiKeySelect.addEventListener('change', (e) => this.selectApiKey(e.target.value));
-        this.modelSelect.addEventListener('change', (e) => this.updateModel(e.target.value));
+        if (this.btnAddApiKey) this.btnAddApiKey.addEventListener('click', () => this.addNewApiKey());
+        if (this.btnSaveApiKey) this.btnSaveApiKey.addEventListener('click', () => this.saveApiKey());
+        if (this.btnDeleteApiKey) this.btnDeleteApiKey.addEventListener('click', () => this.deleteApiKey());
+        if (this.apiKeySelect) this.apiKeySelect.addEventListener('change', (e) => this.selectApiKey(e.target.value));
+        if (this.modelSelect) this.modelSelect.addEventListener('change', (e) => this.updateModel(e.target.value));
         
         // Initialize API Key Management
         this.initApiKeyManagement();
@@ -1164,11 +1168,13 @@ class RecorderApp {
             }
             
             // Start（iOS Safariではstart()が失敗することがあるため、timeslice付きも試行）
+            this.startWithTimeslice = false;
             try {
                 this.mediaRecorder.start();
             } catch (startErr) {
                 try {
                     this.mediaRecorder.start(1000);
+                    this.startWithTimeslice = true;
                 } catch (startErr2) {
                     stream.getTracks().forEach(t => t.stop());
                     throw new Error('録音開始に失敗: ' + (startErr2.message || startErr2));
@@ -1226,7 +1232,7 @@ class RecorderApp {
         this.audioChunks = [];
 
         this.mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
+            if (event.data && event.data.size > 0) {
                 this.audioChunks.push(event.data);
             }
         };
@@ -1243,7 +1249,11 @@ class RecorderApp {
                 this.segmentCounter++;
                 this.audioChunks = [];
                 this.startTime = Date.now(); // Reset timer base
-                this.mediaRecorder.start(); // Restart immediately
+                if (this.startWithTimeslice) {
+                    this.mediaRecorder.start(1000);
+                } else {
+                    this.mediaRecorder.start();
+                }
                 console.log(`Segment ${this.segmentCounter} started (Auto-split).`);
             }
         };
@@ -1286,12 +1296,12 @@ class RecorderApp {
             // Update Display (MM:SS)
             const minutes = Math.floor(elapsed / 60000);
             const seconds = Math.floor((elapsed % 60000) / 1000);
-            this.timerDisplay.textContent = 
+            if (this.timerDisplay) this.timerDisplay.textContent = 
                 `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
             // Update Progress Bar
             const progress = Math.min((elapsed / this.SEGMENT_LIMIT_MS) * 100, 100);
-            this.progressBar.style.width = `${progress}%`;
+            if (this.progressBar) this.progressBar.style.width = `${progress}%`;
 
             // Check Auto-Split Condition
             if (elapsed >= this.SEGMENT_LIMIT_MS) {
@@ -1304,25 +1314,29 @@ class RecorderApp {
 
     stopTimer() {
         if (this.timerInterval) clearInterval(this.timerInterval);
-        this.timerDisplay.textContent = "00:00";
-        this.progressBar.style.width = "0%";
+        if (this.timerDisplay) this.timerDisplay.textContent = "00:00";
+        if (this.progressBar) this.progressBar.style.width = "0%";
     }
 
     updateUIState(isRecording) {
-        this.btnStart.disabled = isRecording;
-        this.btnStop.disabled = !isRecording;
-        this.statusText.textContent = isRecording ? "録音中" : "待機中";
-        this.segmentCounterDisplay.textContent = this.segmentCounter;
+        if (this.btnStart) this.btnStart.disabled = isRecording;
+        if (this.btnStop) this.btnStop.disabled = !isRecording;
+        if (this.statusText) this.statusText.textContent = isRecording ? "録音中" : "待機中";
+        if (this.segmentCounterDisplay) this.segmentCounterDisplay.textContent = this.segmentCounter;
         
         if (isRecording) {
-            this.indicator.classList.add('active');
-            this.indicator.textContent = '🎙️';
+            if (this.indicator) {
+                this.indicator.classList.add('active');
+                this.indicator.textContent = '🎙️';
+            }
             if (this.statusPanel) {
                 this.statusPanel.classList.add('recording');
             }
         } else {
-            this.indicator.classList.remove('active');
-            this.indicator.textContent = '⏹';
+            if (this.indicator) {
+                this.indicator.classList.remove('active');
+                this.indicator.textContent = '⏹';
+            }
             if (this.statusPanel) {
                 this.statusPanel.classList.remove('recording');
             }
@@ -1369,6 +1383,7 @@ class RecorderApp {
     }
 
     updateApiKeySelect() {
+        if (!this.apiKeySelect) return;
         this.apiKeySelect.innerHTML = '<option value="">新しいAPIキーを追加...</option>';
         this.apiKeys.forEach(key => {
             const option = document.createElement('option');
@@ -1379,9 +1394,9 @@ class RecorderApp {
     }
 
     addNewApiKey() {
-        this.apiKeyInput.value = '';
-        this.apiKeyNameInput.value = '';
-        this.apiKeySelect.value = '';
+        if (this.apiKeyInput) this.apiKeyInput.value = '';
+        if (this.apiKeyNameInput) this.apiKeyNameInput.value = '';
+        if (this.apiKeySelect) this.apiKeySelect.value = '';
         this.currentApiKeyId = null;
     }
 
@@ -1403,8 +1418,8 @@ class RecorderApp {
     }
 
     saveApiKey() {
-        const key = this.apiKeyInput.value.trim();
-        const name = this.apiKeyNameInput.value.trim() || 'APIキー';
+        const key = this.apiKeyInput?.value?.trim() ?? '';
+        const name = this.apiKeyNameInput?.value?.trim() || 'APIキー';
         
         if (!key) {
             alert('APIキーを入力してください');
@@ -1417,13 +1432,13 @@ class RecorderApp {
             if (apiKey) {
                 apiKey.name = name;
                 apiKey.key = key;
-                apiKey.model = this.modelSelect.value;
-                apiKey.rpmLimit = parseInt(this.rpmLimitInput.value) || 5;
-                apiKey.rpdLimit = parseInt(this.rpdLimitInput.value) || 20;
+                apiKey.model = this.modelSelect?.value ?? 'gemini-2.5-flash';
+                apiKey.rpmLimit = parseInt(this.rpmLimitInput?.value) || 5;
+                apiKey.rpdLimit = parseInt(this.rpdLimitInput?.value) || 20;
             }
         } else {
             // 新しいAPIキーを追加
-            this.addApiKey(name, key, this.modelSelect.value);
+            this.addApiKey(name, key, this.modelSelect?.value ?? 'gemini-2.5-flash');
         }
         
         this.saveApiKeys();
@@ -1461,12 +1476,12 @@ class RecorderApp {
         if (!apiKey) return;
 
         this.currentApiKeyId = id;
-        this.apiKeyInput.value = apiKey.key;
-        this.apiKeyNameInput.value = apiKey.name;
-        this.apiKeySelect.value = id;
-        this.modelSelect.value = apiKey.model || 'gemini-2.5-flash';
-        this.rpmLimitInput.value = apiKey.rpmLimit || 5;
-        this.rpdLimitInput.value = apiKey.rpdLimit || 20;
+        if (this.apiKeyInput) this.apiKeyInput.value = apiKey.key;
+        if (this.apiKeyNameInput) this.apiKeyNameInput.value = apiKey.name;
+        if (this.apiKeySelect) this.apiKeySelect.value = id;
+        if (this.modelSelect) this.modelSelect.value = apiKey.model || 'gemini-2.5-flash';
+        if (this.rpmLimitInput) this.rpmLimitInput.value = apiKey.rpmLimit || 5;
+        if (this.rpdLimitInput) this.rpdLimitInput.value = apiKey.rpdLimit || 20;
         
         this.MODEL_NAME = apiKey.model || 'gemini-2.5-flash';
         this.RPM_LIMIT = apiKey.rpmLimit || 5;
@@ -1483,7 +1498,7 @@ class RecorderApp {
             const apiKey = this.apiKeys.find(k => k.id === this.currentApiKeyId);
             if (apiKey) return apiKey.key;
         }
-        return this.apiKeyInput.value.trim();
+        return this.apiKeyInput?.value?.trim() ?? '';
     }
 
     updateModel(modelName) {
@@ -1525,7 +1540,7 @@ class RecorderApp {
      * Gets the prompt template based on selected mode.
      */
     getPromptTemplate() {
-        const selectedMode = document.querySelector('input[name="recordingMode"]:checked').value;
+        const selectedMode = document.querySelector('input[name="recordingMode"]:checked')?.value || 'meeting';
         
         const prompts = {
             secure: `
@@ -1980,7 +1995,9 @@ class RecorderApp {
             this.incrementRateLimit();
 
             // Display Result
-            const markdown = data.candidates[0].content.parts[0].text;
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!text) throw new Error(data.error?.message || 'API応答の形式が不正です');
+            const markdown = text;
             contentDiv.classList.remove('loading');
             contentDiv.innerHTML = this.simpleMarkdownParse(markdown); // Simple format for prototype
             
@@ -2006,8 +2023,10 @@ class RecorderApp {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => {
-                const base64String = reader.result.split(',')[1];
-                resolve(base64String);
+                const result = reader.result;
+                if (!result || typeof result !== 'string') return reject(new Error('Blobの読み込みに失敗しました'));
+                const base64String = result.split(',')[1];
+                resolve(base64String || '');
             };
             reader.onerror = reject;
             reader.readAsDataURL(blob);
@@ -2094,7 +2113,7 @@ class RecorderApp {
                 segmentId: segmentId,
                 timestamp: timestamp,
                 date: new Date().toISOString(),
-                mode: document.querySelector('input[name="recordingMode"]:checked').value,
+                mode: document.querySelector('input[name="recordingMode"]:checked')?.value || 'meeting',
                 content: rawMarkdown
             };
             
@@ -2126,13 +2145,13 @@ class RecorderApp {
             }
 
             const allLogs = [];
-            const selectedMode = document.querySelector('input[name="recordingMode"]:checked').value;
+            const selectedMode = document.querySelector('input[name="recordingMode"]:checked')?.value || 'meeting';
             
             logEntries.forEach(entry => {
                 const header = entry.querySelector('.log-header');
                 const contentDiv = entry.querySelector('.log-content');
                 
-                if (!contentDiv || contentDiv.classList.contains('loading')) return;
+                if (!contentDiv || !header || contentDiv.classList.contains('loading')) return;
                 
                 const segmentMatch = header.textContent.match(/セグメント #(\d+)/);
                 const timeMatch = header.textContent.match(/(\d{1,2}:\d{2}:\d{2})/);
