@@ -724,7 +724,51 @@
             background: #16a34a;
         }
 
+        .app-update-btn {
+            padding: 8px 16px;
+            font-size: 0.875rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        .app-update-btn:hover {
+            background: #2563eb;
+        }
+
+        .app-update-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .header-row h1 {
+            margin: 0;
+        }
+
         @media (max-width: 640px) {
+            .header-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .app-update-btn {
+                width: 100%;
+            }
+
             .log-header-section {
                 flex-direction: column;
                 align-items: stretch;
@@ -753,7 +797,10 @@
 <body>
 
 <div class="container">
-    <h1>🎙️ Gemini Auto-Split Recorder</h1>
+    <div class="header-row">
+        <h1>🎙️ Gemini Auto-Split Recorder</h1>
+        <button type="button" id="btnAppUpdate" class="app-update-btn" title="キャッシュを削除して最新版を取得">🔄 アプリ更新</button>
+    </div>
     
     <div class="input-group">
         <div class="settings-toggle" id="apiKeyToggle">
@@ -2106,12 +2153,34 @@ class RecorderApp {
     }
 }
 
+// アプリ更新: キャッシュ削除・SW解除・リロード
+async function forceAppUpdate() {
+    const btn = document.getElementById('btnAppUpdate');
+    if (btn) btn.disabled = true;
+    try {
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const reg of registrations) await reg.unregister();
+        }
+        if ('caches' in window) {
+            const names = await caches.keys();
+            for (const name of names) await caches.delete(name);
+        }
+        window.location.replace(window.location.pathname + '?t=' + Date.now());
+    } catch (err) {
+        console.error('Update failed:', err);
+        alert('更新に失敗しました。手動でリロードしてください。');
+        if (btn) btn.disabled = false;
+    }
+}
+
 // Initialize
 let app;
 window.addEventListener('DOMContentLoaded', () => {
     app = new RecorderApp();
     
-    // Service Worker登録
+    document.getElementById('btnAppUpdate')?.addEventListener('click', forceAppUpdate);
+    
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js')
             .then(registration => {
