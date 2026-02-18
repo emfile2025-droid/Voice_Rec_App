@@ -929,6 +929,7 @@ class RecorderApp {
         // State
         this.mediaRecorder = null;
         this.audioChunks = [];
+        this.recordingMimeType = 'audio/webm'; // デフォルト（iOSではsetupRecorderでaudio/mp4に上書き）
         this.isRecording = false;
         this.startTime = null;
         this.timerInterval = null;
@@ -1124,17 +1125,19 @@ class RecorderApp {
             console.log(`Segment ${this.segmentCounter} started.`);
 
         } catch (err) {
-            console.error('Error accessing microphone:', err);
-            alert('マイクへのアクセスに失敗しました。設定を確認してください。');
+            console.error('Error accessing microphone or starting recorder:', err);
+            alert('マイクへのアクセス、または録音の開始に失敗しました。設定を確認してください。');
         }
     }
 
     /**
      * Configures the MediaRecorder instance.
+     * iOS Safari does NOT support audio/webm - uses audio/mp4 fallback.
      */
     setupRecorder(stream) {
-        // Preferred MIME type for Gemini
-        const mimeType = 'audio/webm'; 
+        // iOS Safariはaudio/webmをサポートしていないため、isTypeSupportedで検出
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+        this.recordingMimeType = mimeType;
         this.mediaRecorder = new MediaRecorder(stream, { mimeType });
         this.audioChunks = [];
 
@@ -1145,8 +1148,8 @@ class RecorderApp {
         };
 
         this.mediaRecorder.onstop = () => {
-            // Create Blob from chunks
-            const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+            // Create Blob from chunks (use same mime type as recording)
+            const audioBlob = new Blob(this.audioChunks, { type: this.recordingMimeType });
             
             // Process this segment
             this.processAudioSegment(audioBlob, this.segmentCounter);
@@ -1868,7 +1871,7 @@ class RecorderApp {
                         { text: promptText },
                         {
                             inline_data: {
-                                mime_type: "audio/webm",
+                                mime_type: this.recordingMimeType || "audio/webm",
                                 data: base64Audio
                             }
                         }
