@@ -506,6 +506,18 @@
             color: var(--text-muted);
         }
 
+        .log-action-btn.retry {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .log-retry-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
         .log-action-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -1118,6 +1130,10 @@ class RecorderApp {
         this.segmentCounter = 1;
         this.wakeLock = null; // ★ Wake Lock用の変数を追加
 
+        // IndexedDB for audio backup (API失敗時の再送信用)
+        this.AUDIO_DB_NAME = 'VoiceREC_audio';
+        this.AUDIO_STORE_NAME = 'audioSegments';
+
         // DOM Elements
         this.apiKeyInput = document.getElementById('apiKey');
         this.apiKeyNameInput = document.getElementById('apiKeyName');
@@ -1177,7 +1193,10 @@ class RecorderApp {
         
         // Initialize API Key Management
         this.initApiKeyManagement();
-        
+
+        // Initialize IndexedDB for audio backup
+        this.initAudioDB();
+
         // Load API Key from localStorage (backward compatibility)
         const savedKey = localStorage.getItem('gemini_api_key');
         if (savedKey && this.apiKeys.length === 0) {
@@ -2118,6 +2137,153 @@ class RecorderApp {
     }
 
     /**
+     * IndexedDB: 音声データのバックアップ用DBを初期化
+     */
+    initAudioDB() {
+        if (this.audioDB) return Promise.resolve();
+        return new Promise((resolve) => {
+            try {
+                const req = indexedDB.open(this.AUDIO_DB_NAME, 1);
+                req.onerror = () => {
+                    console.warn('[IndexedDB] open failed:', req.error);
+                    resolve();
+                };
+                req.onsuccess = () => {
+                    this.audioDB = req.result;
+                    console.log('[IndexedDB] initialized');
+                    resolve();
+                };
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(this.AUDIO_STORE_NAME)) {
+                        db.createObjectStore(this.AUDIO_STORE_NAME, { keyPath: 'logId' });
+                    }
+                };
+            } catch (e) {
+                console.warn('[IndexedDB] not available:', e);
+                resolve();
+            }
+        });
+    }
+
+    /**
+     * IndexedDB: 音声データを保存（API失敗時の再送信用）
+     */
+    async saveAudioToIndexedDB(logId, blob, mimeType) {
+        if (!indexedDB || !blob) {
+            console.warn('[IndexedDB] save skipped: indexedDB or blob missing');
+            return;
+        }
+        await this.initAudioDB();
+        if (!this.audioDB) {
+            console.warn('[IndexedDB] save skipped: DB not available');
+            return;
+        }
+        return new Promise((resolve) => {
+            const tx = this.audioDB.transaction(this.AUDIO_STORE_NAME, 'readwrite');
+            const store = tx.objectStore(this.AUDIO_STORE_NAME);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                store.put({ logId, arrayBuffer: reader.result, mimeType: mimeType || this.recordingMimeType });
+                tx.oncomplete = () => {
+                    console.log('[IndexedDB] saved:', logId, `(${(blob.size / 1024).toFixed(1)}KB)`);
+                    resolve();
+                };
+                tx.onerror = () => {
+                    console.warn('[IndexedDB] save error:', tx.error);
+                    resolve();
+                };
+            };
+            reader.onerror = () => {
+                console.warn('[IndexedDB] FileReader error:', reader.error);
+                resolve();
+            };
+            reader.readAsArrayBuffer(blob);
+        });
+    }
+
+    /**
+     * IndexedDB: 音声データを取得
+     */
+    async getAudioFromIndexedDB(logId) {
+        if (!indexedDB) return null;
+        await this.initAudioDB();
+        if (!this.audioDB) return null;
+        return new Promise((resolve) => {
+            const tx = this.audioDB.transaction(this.AUDIO_STORE_NAME, 'readonly');
+            const store = tx.objectStore(this.AUDIO_STORE_NAME);
+            const req = store.get(logId);
+            req.onsuccess = () => {
+                const data = req.result;
+                if (!data || !data.arrayBuffer) {
+                    console.log('[IndexedDB] get: not found:', logId);
+                    return resolve(null);
+                }
+                console.log('[IndexedDB] get:', logId);
+                resolve({
+                    blob: new Blob([data.arrayBuffer], { type: data.mimeType || 'audio/webm' }),
+                    mimeType: data.mimeType || 'audio/webm'
+                });
+            };
+            req.onerror = () => {
+                console.warn('[IndexedDB] get error:', req.error);
+                resolve(null);
+            };
+        });
+    }
+
+    /**
+     * IndexedDB: 音声データを削除（要約成功時）
+     */
+    async deleteAudioFromIndexedDB(logId) {
+        if (!indexedDB) return;
+        await this.initAudioDB();
+        if (!this.audioDB) return;
+        return new Promise((resolve) => {
+            const tx = this.audioDB.transaction(this.AUDIO_STORE_NAME, 'readwrite');
+            const store = tx.objectStore(this.AUDIO_STORE_NAME);
+            store.delete(logId);
+            tx.oncomplete = () => {
+                console.log('[IndexedDB] deleted:', logId);
+                resolve();
+            };
+            tx.onerror = () => resolve();
+        });
+    }
+
+    /**
+     * 音声をGemini APIに送信し、要約テキストを返す（内部用）
+     */
+    async executeAudioApiCall(blob, mimeType) {
+        this.checkRateLimit();
+        const base64Audio = await this.blobToBase64(blob);
+        const apiKey = this.getCurrentApiKey();
+        if (!apiKey) throw new Error('APIキーが設定されていません');
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.MODEL_NAME}:generateContent?key=${apiKey}`;
+        const promptText = this.getPromptTemplate();
+        const payload = {
+            contents: [{
+                parts: [
+                    { text: promptText },
+                    { inline_data: { mime_type: mimeType, data: base64Audio } }
+                ]
+            }]
+        };
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (data.error) throw new Error(data.error.message || String(data.error));
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${data.error?.message || response.statusText || 'Unknown error'}`);
+        this.incrementRateLimit();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error(data.error?.message || 'API応答の形式が不正です');
+        return text;
+    }
+
+    /**
      * Sends audio to Gemini API and displays result.
      * @param {Blob} blob - 音声データ
      * @param {number} segmentId - セグメント番号
@@ -2140,62 +2306,20 @@ class RecorderApp {
                     <button class="log-action-btn save" onclick="app.saveLog('${logId}', ${segmentId}, '${timestamp}')">💾 保存</button>
                     <button class="log-action-btn share" onclick="app.shareLog('${logId}', ${segmentId}, '${timestamp}')">🔗 共有</button>
                 </div>
+                <div class="log-retry-actions" style="display: none;">
+                    <button class="log-action-btn retry" onclick="app.retryAudioSegment('${logId}')">🔄 再送信</button>
+                </div>
             </div>
         `;
         this.logsContainer.insertAdjacentHTML('afterbegin', logHtml);
         const contentDiv = document.querySelector(`#${logId} .log-content`);
+        const mimeType = mimeTypeOverride || this.recordingMimeType || 'audio/webm';
+
+        // IndexedDBに音声を保存（API失敗時の再送信用）
+        await this.saveAudioToIndexedDB(logId, blob, mimeType);
 
         try {
-            // Check rate limit before making request
-            this.checkRateLimit();
-
-            // Convert Blob to Base64
-            const base64Audio = await this.blobToBase64(blob);
-
-            // Prepare API Request
-            const apiKey = this.getCurrentApiKey();
-            if (!apiKey) {
-                throw new Error('APIキーが設定されていません');
-            }
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.MODEL_NAME}:generateContent?key=${apiKey}`;
-
-            // Get prompt based on selected mode
-            const promptText = this.getPromptTemplate();
-
-            const payload = {
-                contents: [{
-                    parts: [
-                        { text: promptText },
-                        {
-                            inline_data: {
-                                mime_type: mimeTypeOverride || this.recordingMimeType || "audio/webm",
-                                data: base64Audio
-                            }
-                        }
-                    ]
-                }]
-            };
-
-            // Fetch
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await response.json();
-
-            if (data.error) {
-                throw new Error(data.error.message);
-            }
-
-            // Increment rate limit counters after successful request
-            this.incrementRateLimit();
-
-            // Display Result
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!text) throw new Error(data.error?.message || 'API応答の形式が不正です');
-            const markdown = text;
+            const markdown = await this.executeAudioApiCall(blob, mimeType);
             contentDiv.classList.remove('loading');
             contentDiv.innerHTML = this.simpleMarkdownParse(markdown); // Simple format for prototype
             
@@ -2208,11 +2332,62 @@ class RecorderApp {
             // Store raw markdown for export
             contentDiv.dataset.rawMarkdown = markdown;
 
+            // 要約成功: IndexedDBから音声データを削除
+            await this.deleteAudioFromIndexedDB(logId);
+
         } catch (err) {
             contentDiv.classList.remove('loading');
             contentDiv.classList.add('error');
             contentDiv.textContent = `エラーが発生しました: ${err.message}`;
-            console.error(err);
+            console.error('[processAudioSegment]', err);
+            // エラー時: 再送信ボタンを表示（音声はIndexedDBに保持済み）
+            const retryDiv = document.querySelector(`#${logId} .log-retry-actions`);
+            if (retryDiv) retryDiv.style.display = 'flex';
+        }
+    }
+
+    /**
+     * 失敗したセグメントの音声をIndexedDBから取得して再送信
+     */
+    async retryAudioSegment(logId) {
+        const contentDiv = document.querySelector(`#${logId} .log-content`);
+        const retryDiv = document.querySelector(`#${logId} .log-retry-actions`);
+        if (!contentDiv || !retryDiv) {
+            console.warn('[retry] element not found:', logId);
+            return;
+        }
+
+        console.log('[retry] fetching audio for:', logId);
+        const stored = await this.getAudioFromIndexedDB(logId);
+        if (!stored) {
+            contentDiv.textContent = '音声データが見つかりません。録音し直してください。';
+            console.warn('[retry] audio not found in IndexedDB');
+            return;
+        }
+
+        // 再送信中UI
+        contentDiv.classList.remove('error');
+        contentDiv.classList.add('loading');
+        contentDiv.textContent = '再送信中...';
+        retryDiv.style.display = 'none';
+        const retryBtn = retryDiv.querySelector('.retry');
+        if (retryBtn) retryBtn.disabled = true;
+
+        try {
+            const markdown = await this.executeAudioApiCall(stored.blob, stored.mimeType);
+            contentDiv.classList.remove('loading');
+            contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
+            contentDiv.dataset.rawMarkdown = markdown;
+            const actionsDiv = document.querySelector(`#${logId} .log-actions`);
+            if (actionsDiv) actionsDiv.style.display = 'flex';
+            await this.deleteAudioFromIndexedDB(logId);
+        } catch (e) {
+            contentDiv.classList.remove('loading');
+            contentDiv.classList.add('error');
+            contentDiv.textContent = `エラーが発生しました: ${e.message}`;
+            retryDiv.style.display = 'flex';
+            if (retryBtn) retryBtn.disabled = false;
+            console.error('[retry]', e);
         }
     }
 
