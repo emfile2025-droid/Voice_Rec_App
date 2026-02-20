@@ -1360,7 +1360,7 @@ class RecorderApp {
     /**
      * ファイル選択時に音声を要約処理
      */
-    handleFileSelect(event) {
+    async handleFileSelect(event) {
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -1380,9 +1380,19 @@ class RecorderApp {
         }
 
         const effectiveMime = this.getAudioMimeType(file);
+        const ext = (file.name || '').toLowerCase().match(/\.[a-z0-9]+$/)?.[0] || '';
+        let blobToUse = file;
+        let mimeToUse = effectiveMime;
+        if (['.m4a', '.mp4', '.aac'].includes(ext) || ['audio/mp4', 'video/mp4'].includes(effectiveMime)) {
+            const wavBlob = await this.convertToWav(file);
+            if (wavBlob) {
+                blobToUse = wavBlob;
+                mimeToUse = 'audio/wav';
+            }
+        }
 
         const segmentId = this.segmentCounter;
-        this.processAudioSegment(file, segmentId, effectiveMime);
+        this.processAudioSegment(blobToUse, segmentId, mimeToUse);
         this.segmentCounter++;
         if (this.segmentCounterDisplay) this.segmentCounterDisplay.textContent = this.segmentCounter;
         event.target.value = '';
@@ -2455,6 +2465,56 @@ class RecorderApp {
             retryDiv.style.display = 'flex';
             if (retryBtn) retryBtn.disabled = false;
             console.error('[retry]', e);
+        }
+    }
+
+    /**
+     * m4a/mp4等をWAVに変換（iPhoneボイスメモ対応、GeminiはWAVを確実にサポート）
+     */
+    async convertToWav(blob) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        const ctx = new AudioContextClass();
+        try {
+            const arrayBuffer = await blob.arrayBuffer();
+            const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+            const numChannels = audioBuffer.numberOfChannels;
+            const sampleRate = audioBuffer.sampleRate;
+            const channelData = audioBuffer.getChannelData(0);
+            const len = channelData.length * numChannels;
+            const buffer = new ArrayBuffer(44 + len * 2);
+            const view = new DataView(buffer);
+            const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+            writeStr(0, 'RIFF');
+            view.setUint32(4, 36 + len * 2, true);
+            writeStr(8, 'WAVE');
+            writeStr(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * numChannels * 2, true);
+            view.setUint16(32, numChannels * 2, true);
+            view.setUint16(34, 16, true);
+            writeStr(36, 'data');
+            view.setUint32(40, len * 2, true);
+            const offset = 44;
+            if (numChannels === 1) {
+                for (let i = 0; i < channelData.length; i++) view.setInt16(offset + i * 2, Math.max(-1, Math.min(1, channelData[i])) * 0x7FFF, true);
+            } else {
+                const ch1 = audioBuffer.getChannelData(0);
+                const ch2 = audioBuffer.getChannelData(1);
+                for (let i = 0; i < ch1.length; i++) {
+                    view.setInt16(offset + i * 4, Math.max(-1, Math.min(1, ch1[i])) * 0x7FFF, true);
+                    view.setInt16(offset + i * 4 + 2, Math.max(-1, Math.min(1, ch2[i])) * 0x7FFF, true);
+                }
+            }
+            return new Blob([buffer], { type: 'audio/wav' });
+        } catch (e) {
+            console.warn('[convertToWav] failed:', e);
+            return null;
+        } finally {
+            await ctx.close();
         }
     }
 
