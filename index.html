@@ -1089,7 +1089,7 @@
     <div class="log-header-section">
         <h3 style="margin: 0;">📝 要約ログ</h3>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <input type="file" id="audioFileInput" accept="audio/*" style="display: none;">
+            <input type="file" id="audioFileInput" accept="audio/*,.m4a,.aac,.mp4,.mp3,.wav,.webm,.ogg,.flac" style="display: none;">
             <button type="button" id="btnLoadFile" class="file-load-btn">📁 ファイルから読み込み</button>
             <button id="btnExportAll" class="export-all-btn">📥 全ログをエクスポート</button>
         </div>
@@ -1334,6 +1334,30 @@ class RecorderApp {
     }
 
     /**
+     * ファイルから適切なMIMEタイプを取得（m4a等の拡張子対応）
+     */
+    getAudioMimeType(file) {
+        const extMap = {
+            '.m4a': 'audio/mp4',
+            '.aac': 'audio/mp4',
+            '.mp4': 'audio/mp4',
+            '.mp3': 'audio/mpeg',
+            '.wav': 'audio/wav',
+            '.webm': 'audio/webm',
+            '.ogg': 'audio/ogg',
+            '.flac': 'audio/flac'
+        };
+        const supported = ['audio/mp4', 'audio/x-m4a', 'audio/mpeg', 'audio/webm', 'audio/ogg', 'audio/wav', 'audio/flac', 'video/mp4'];
+        let mime = file.type || '';
+        if (supported.includes(mime)) {
+            if (mime === 'audio/x-m4a') return 'audio/mp4';
+            return mime;
+        }
+        const ext = (file.name || '').toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
+        return extMap[ext] || 'audio/mp4';
+    }
+
+    /**
      * ファイル選択時に音声を要約処理
      */
     handleFileSelect(event) {
@@ -1355,9 +1379,7 @@ class RecorderApp {
             return;
         }
 
-        const mimeType = file.type || 'audio/mp4';
-        const supportedTypes = ['audio/mp4', 'audio/mpeg', 'audio/webm', 'audio/ogg', 'audio/wav', 'video/mp4'];
-        const effectiveMime = supportedTypes.includes(mimeType) ? mimeType : 'audio/mp4';
+        const effectiveMime = this.getAudioMimeType(file);
 
         const segmentId = this.segmentCounter;
         this.processAudioSegment(file, segmentId, effectiveMime);
@@ -2300,11 +2322,22 @@ class RecorderApp {
                 ]
             }]
         };
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000);
+        let response;
+        try {
+            response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+        } catch (e) {
+            clearTimeout(timeoutId);
+            if (e.name === 'AbortError') throw new Error('API応答がタイムアウトしました（90秒）。ファイルが大きい場合は短くするか、しばらく待って再試行してください。');
+            throw e;
+        }
+        clearTimeout(timeoutId);
         const data = await response.json().catch(() => ({}));
         if (data.error) throw new Error(data.error.message || String(data.error));
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${data.error?.message || response.statusText || 'Unknown error'}`);
@@ -2367,7 +2400,11 @@ class RecorderApp {
         } catch (err) {
             contentDiv.classList.remove('loading');
             contentDiv.classList.add('error');
-            contentDiv.textContent = `エラーが発生しました: ${err.message}`;
+            let msg = err.message;
+            if (/unsupported|invalid.*format|mime|media/i.test(msg)) {
+                msg += ' 音声形式がサポートされていない可能性があります。MP3やWAV形式でお試しください。';
+            }
+            contentDiv.textContent = `エラーが発生しました: ${msg}`;
             console.error('[processAudioSegment]', err);
             // エラー時: 再送信ボタンを表示（音声はIndexedDBに保持済み）
             const retryDiv = document.querySelector(`#${logId} .log-retry-actions`);
