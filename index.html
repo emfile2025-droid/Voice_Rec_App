@@ -1022,10 +1022,6 @@
                 <input type="radio" id="mode-secure" name="recordingMode" value="secure">
                 <label for="mode-secure">🔒 秘匿性の高い会議<br><small>有料API推奨</small></label>
             </div>
-            <div class="mode-option">
-                <input type="radio" id="mode-lecture" name="recordingMode" value="lecture">
-                <label for="mode-lecture">📚 レクチャーモード<br><small>要約＋おすすめ文献1本</small></label>
-            </div>
         </div>
     </div>
 
@@ -1212,6 +1208,10 @@ class RecorderApp {
         const savedMode = localStorage.getItem('recording_mode') || 'meeting';
         const modeInput = document.querySelector(`input[name="recordingMode"][value="${savedMode}"]`);
         if (modeInput) modeInput.checked = true;
+        else {
+            const meetingInput = document.querySelector('input[name="recordingMode"][value="meeting"]');
+            if (meetingInput) meetingInput.checked = true;
+        }
         
         this.modeInputs.forEach(input => {
             input.addEventListener('change', (e) => {
@@ -1966,23 +1966,6 @@ class RecorderApp {
 
 ---
 (以下、音声が途中から始まっている場合は文脈を補完して要約してください)
-`,
-            lecture: `
-あなたは優秀なレクチャー要約の専門家です。提供された音声データ（講義・セミナー・勉強会など）を分析し、以下のフォーマットに従って日本語で要約を作成してください。
-
-# 役割と制約
-- 「えー」「あー」などのフィラーは除外すること。
-- 専門用語や固有名詞は可能な限り正確に記述すること。
-- マークダウン形式で見やすく整形すること。
-- 医学・生命科学・医療に関連する内容であれば、PubMedで検索できる英語キーワードを抽出すること。
-
-# 出力フォーマット
-
-## 📝 レクチャー要約
-講義の内容を分かりやすく要約してください。主要なトピック、重要なポイント、結論を含めること。
-
-## 🔑 検索キーワード
-（以下に、PubMedでレビュー論文を検索するための英語キーワードを1〜3個、カンマ区切りで1行で記載してください。医学・生命科学以外の内容の場合は「none」と記載）
 `
         };
         
@@ -2300,93 +2283,6 @@ class RecorderApp {
     }
 
     /**
-     * レクチャー要約から検索キーワードを抽出
-     */
-    parseLectureKeywords(text) {
-        const section = text.match(/検索キーワード[\s\S]*?(?=##|$)/i);
-        if (!section) return null;
-        const lines = section[0].split(/\n/).map(l => l.trim()).filter(Boolean);
-        for (const line of lines) {
-            const kw = line.replace(/^[（(].*?[）)]\s*/g, '').replace(/^キーワード[：:]\s*/i, '').trim();
-            if (!kw || /^none$/i.test(kw)) continue;
-            if (/[a-zA-Z]{2,}/.test(kw)) {
-                const arr = kw.split(/[,，、]/).map(s => s.trim()).filter(Boolean).slice(0, 3);
-                if (arr.length) return arr;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * PubMedでレビュー論文を検索（直近5年、引用数でソート用にPMID取得）
-     */
-    async fetchPubMedReviewPapers(keywords) {
-        const query = encodeURIComponent(
-            keywords.join(' ') + ' AND review[ptyp] AND "last 5 years"[PDat]'
-        );
-        const url = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${query}&retmax=20&retmode=json&tool=VoiceREC&email=user@example.com`;
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            const idList = data.esearchresult?.idlist || [];
-            return idList;
-        } catch (e) {
-            console.warn('[PubMed] fetch error:', e);
-            return [];
-        }
-    }
-
-    /**
-     * iCite APIでPMIDの引用数を取得
-     */
-    async fetchICiteCitations(pmids) {
-        if (!pmids.length) return [];
-        const url = `https://icite.od.nih.gov/api/pubs?pmids=${pmids.join(',')}&format=json`;
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            return Array.isArray(data.data) ? data.data : [];
-        } catch (e) {
-            console.warn('[iCite] fetch error:', e);
-            return [];
-        }
-    }
-
-    /**
-     * レクチャー要約＋今日の1本（引用数トップのレビュー論文）を取得
-     */
-    async fetchLectureWithPaper(summaryText) {
-        const keywords = this.parseLectureKeywords(summaryText);
-        if (!keywords || keywords.length === 0) return { summary: summaryText, paper: null };
-
-        const pmids = await this.fetchPubMedReviewPapers(keywords);
-        if (pmids.length === 0) return { summary: summaryText, paper: null };
-
-        const citations = await this.fetchICiteCitations(pmids);
-        const withCount = citations
-            .filter(p => p.pmid && (p.citation_count != null || p.nih_percentile != null))
-            .map(p => ({ ...p, citation_count: p.citation_count || 0 }))
-            .sort((a, b) => (b.citation_count || 0) - (a.citation_count || 0));
-
-        const top = withCount[0];
-        if (!top) return { summary: summaryText, paper: null };
-
-        const title = top.title || 'Unknown';
-        let authors = '';
-        if (top.authors) {
-            if (Array.isArray(top.authors)) authors = top.authors.map(a => a.name || a).join(', ');
-            else authors = String(top.authors);
-        }
-        const year = top.year || '';
-        const url = `https://pubmed.ncbi.nlm.nih.gov/${top.pmid}/`;
-
-        return {
-            summary: summaryText,
-            paper: { title, authors, year, url, pmid: top.pmid, citation_count: top.citation_count }
-        };
-    }
-
-    /**
      * 音声をGemini APIに送信し、要約テキストを返す（内部用）
      */
     async executeAudioApiCall(blob, mimeType) {
@@ -2455,27 +2351,9 @@ class RecorderApp {
 
         try {
             const markdown = await this.executeAudioApiCall(blob, mimeType);
-            const selectedMode = document.querySelector('input[name="recordingMode"]:checked')?.value || 'meeting';
-
-            if (selectedMode === 'lecture') {
-                contentDiv.textContent = '文献を検索中...';
-                const { summary, paper } = await this.fetchLectureWithPaper(markdown);
-                const paperHtml = paper
-                    ? `<div class="lecture-paper" style="margin-top:16px;padding:12px;background:var(--input-bg);border-radius:8px;border:1px solid var(--card-border);">
-<strong>📚 今日の1本</strong><br>
-<a href="${paper.url}" target="_blank" rel="noopener" style="color:var(--primary-color);">${this.escapeHtml(paper.title)}</a><br>
-<small>${this.escapeHtml(paper.authors || '')} (${paper.year})${paper.citation_count != null ? ` · 引用${paper.citation_count}件` : ''}</small>
-</div>`
-                    : '';
-                const fullHtml = this.simpleMarkdownParse(summary) + paperHtml;
-                contentDiv.classList.remove('loading');
-                contentDiv.innerHTML = fullHtml;
-                contentDiv.dataset.rawMarkdown = summary + (paper ? `\n\n## 📚 今日の1本\n${paper.title}\n${paper.url}` : '');
-            } else {
-                contentDiv.classList.remove('loading');
-                contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
-                contentDiv.dataset.rawMarkdown = markdown;
-            }
+            contentDiv.classList.remove('loading');
+            contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
+            contentDiv.dataset.rawMarkdown = markdown;
 
             // Show action buttons after content is loaded
             const actionsDiv = document.querySelector(`#${logId} .log-actions`);
@@ -2526,26 +2404,9 @@ class RecorderApp {
 
         try {
             const markdown = await this.executeAudioApiCall(stored.blob, stored.mimeType);
-            const selectedMode = document.querySelector('input[name="recordingMode"]:checked')?.value || 'meeting';
-
-            if (selectedMode === 'lecture') {
-                contentDiv.textContent = '文献を検索中...';
-                const { summary, paper } = await this.fetchLectureWithPaper(markdown);
-                const paperHtml = paper
-                    ? `<div class="lecture-paper" style="margin-top:16px;padding:12px;background:var(--input-bg);border-radius:8px;border:1px solid var(--card-border);">
-<strong>📚 今日の1本</strong><br>
-<a href="${paper.url}" target="_blank" rel="noopener" style="color:var(--primary-color);">${this.escapeHtml(paper.title)}</a><br>
-<small>${this.escapeHtml(paper.authors || '')} (${paper.year})${paper.citation_count != null ? ` · 引用${paper.citation_count}件` : ''}</small>
-</div>`
-                    : '';
-                contentDiv.classList.remove('loading');
-                contentDiv.innerHTML = this.simpleMarkdownParse(summary) + paperHtml;
-                contentDiv.dataset.rawMarkdown = summary + (paper ? `\n\n## 📚 今日の1本\n${paper.title}\n${paper.url}` : '');
-            } else {
-                contentDiv.classList.remove('loading');
-                contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
-                contentDiv.dataset.rawMarkdown = markdown;
-            }
+            contentDiv.classList.remove('loading');
+            contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
+            contentDiv.dataset.rawMarkdown = markdown;
 
             const actionsDiv = document.querySelector(`#${logId} .log-actions`);
             if (actionsDiv) actionsDiv.style.display = 'flex';
@@ -2573,14 +2434,6 @@ class RecorderApp {
             reader.onerror = reject;
             reader.readAsDataURL(blob);
         });
-    }
-
-    // Helper: HTML escape for safe display
-    escapeHtml(str) {
-        if (!str) return '';
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
     }
 
     // Helper: Very simple Markdown to HTML for display
