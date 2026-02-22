@@ -1410,6 +1410,10 @@ class RecorderApp {
             return;
         }
 
+        if (!navigator.mediaDevices?.getUserMedia) {
+            alert('マイクにアクセスできません。HTTPSまたはlocalhostで開いているか確認してください。\n\n（Chromeではfile://では録音できません）');
+            return;
+        }
         let stream = null;
         try {
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1427,10 +1431,16 @@ class RecorderApp {
                 console.error('Wake Lock error:', err);
             }
             
-            // Start（iOS Safariではstart()が失敗することがあるため、timeslice付きも試行）
+            // Start（Chrome: timesliceで確実にデータ取得。iOS Safari: start()失敗時はtimesliceで再試行）
             this.startWithTimeslice = false;
+            const useTimeslice = /Chrome|Chromium/.test(navigator.userAgent) && !/Edg|OPR/.test(navigator.userAgent);
             try {
-                this.mediaRecorder.start();
+                if (useTimeslice) {
+                    this.mediaRecorder.start(1000);
+                    this.startWithTimeslice = true;
+                } else {
+                    this.mediaRecorder.start();
+                }
             } catch (startErr) {
                 try {
                     this.mediaRecorder.start(1000);
@@ -1451,29 +1461,53 @@ class RecorderApp {
             console.error('Error accessing microphone or starting recorder:', err);
             if (stream) stream.getTracks().forEach(t => t.stop());
             const msg = err && err.message ? err.message : String(err);
-            alert('マイクへのアクセス、または録音の開始に失敗しました。\n\n詳細: ' + msg + '\n\n設定を確認するか、Safariの通常ブラウザでお試しください。');
+            let help = '';
+            if (/permission denied|Permission denied|NotAllowedError|NotReadableError/i.test(msg)) {
+                help = '\n\n【対処法】\n' +
+                    '1. ブラウザのアドレスバー左の鍵アイコン → サイトの設定 → マイクを「許可」に\n' +
+                    '2. Chrome設定: chrome://settings/content/microphone でこのサイトを許可\n' +
+                    '3. Windows: 設定 → プライバシー → マイク → アプリのアクセス許可を確認\n' +
+                    '4. Mac: システム環境設定 → プライバシーとセキュリティ → マイク → Chromeにチェック';
+            } else {
+                help = '\n\n設定を確認するか、Safariの通常ブラウザでお試しください。';
+            }
+            alert('マイクへのアクセス、または録音の開始に失敗しました。\n\n詳細: ' + msg + help);
         }
     }
 
     /**
      * Configures the MediaRecorder instance.
-     * iOS Safari: オプションなしを最優先。isTypeSupportedが未定義のことがあり、audio/webm非対応。
+     * Chrome: audio/webm を優先。iOS Safari: オプションなしを最優先。
      */
     setupRecorder(stream) {
         let mediaRecorder = null;
         let mimeType = 'audio/webm';
+        const isChrome = /Chrome|Chromium/.test(navigator.userAgent) && !/Edg|OPR/.test(navigator.userAgent);
 
-        // 1. 最優先: オプションなし（ブラウザがデフォルト形式を選択。iOS Safariで有効）
-        try {
-            mediaRecorder = new MediaRecorder(stream);
-            mimeType = (mediaRecorder.mimeType && mediaRecorder.mimeType.length > 0) ? mediaRecorder.mimeType : 'audio/mp4';
-        } catch (e) {
-            console.warn('MediaRecorder(stream) failed:', e);
+        // 1. Chrome: audio/webm を明示的に試行（Chromeのネイティブ形式）
+        if (isChrome && typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported('audio/webm')) {
+            try {
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                mimeType = 'audio/webm';
+            } catch (e) {
+                console.warn('MediaRecorder(audio/webm) failed:', e);
+            }
         }
 
-        // 2. フォールバック: 明示的なMIMEタイプ
+        // 2. オプションなし（ブラウザがデフォルト形式を選択。iOS Safariで有効）
         if (!mediaRecorder) {
-            for (const mt of ['audio/mp4', 'video/mp4', 'audio/webm']) {
+            try {
+                mediaRecorder = new MediaRecorder(stream);
+                mimeType = (mediaRecorder.mimeType && mediaRecorder.mimeType.length > 0) ? mediaRecorder.mimeType : 'audio/mp4';
+            } catch (e) {
+                console.warn('MediaRecorder(stream) failed:', e);
+            }
+        }
+
+        // 3. フォールバック: 明示的なMIMEタイプ（Chrome用にwebmを先に）
+        if (!mediaRecorder) {
+            const types = isChrome ? ['audio/webm', 'audio/mp4', 'video/mp4'] : ['audio/mp4', 'video/mp4', 'audio/webm'];
+            for (const mt of types) {
                 try {
                     if (typeof MediaRecorder.isTypeSupported === 'function' && !MediaRecorder.isTypeSupported(mt)) continue;
                     mediaRecorder = new MediaRecorder(stream, { mimeType: mt });
@@ -1809,6 +1843,12 @@ class RecorderApp {
 - マークダウン形式で見やすく整形すること。
 - 秘匿性の高い会議のため、特に機密情報の取り扱いに注意すること。
 
+# 聞き取りの厳格ルール（必須）
+- 聞き取れなかった・不明瞭な部分は「[聞き取れず]」と明記し、推測や創作で補完しないこと。
+- 確信が持てない発言は「[要確認]」と記載し、憶測で記載しないこと。
+- 音声が雑音で判別できない場合は、その旨を記載すること。
+- 曖昧な聞き取りを「らしい」「かもしれない」で補完しないこと。
+
 # 個人情報保護（必須・強化）
 以下の個人情報は必ず削除または匿名化してください：
 - 氏名、フルネーム、イニシャル、ニックネーム（「Aさん」「B氏」などに置換）
@@ -1841,6 +1881,9 @@ class RecorderApp {
 ## 今後の検討事項
 [今後検討すべき事項を列挙すること]
 
+## ⚠️ 不明瞭・聞き取れなかった箇所
+- [該当する場合は時系列で記載。該当なしの場合は「該当なし」と記載]
+
 `,
             meeting: `
 あなたは優秀な会議の書記官です。提供された音声データを分析し、以下のフォーマットに厳格に従って日本語で議事録を作成してください。
@@ -1858,6 +1901,12 @@ class RecorderApp {
 - 専門用語や固有名詞は可能な限り正確に記述すること。
 - マークダウン形式で見やすく整形すること。
 
+# 聞き取りの厳格ルール（必須）
+- 聞き取れなかった・不明瞭な部分は「[聞き取れず]」と明記し、推測や創作で補完しないこと。
+- 確信が持てない発言は「[要確認]」と記載し、憶測で記載しないこと。
+- 音声が雑音で判別できない場合は、その旨を記載すること。
+- 曖昧な聞き取りを「らしい」「かもしれない」で補完しないこと。
+
 # 個人情報保護（必須）
 以下の個人情報は必ず削除または匿名化してください：
 - 氏名、フルネーム、イニシャル、ニックネーム（「Aさん」「B氏」などに置換）
@@ -1873,13 +1922,21 @@ class RecorderApp {
 - 議論の流れ（誰が何を主張し、どう反応したか）が分かる程度に記載すること。
 - 数字・日付・固有名詞は聞き取れた範囲で正確に記載すること。
 
+# 医療・カンファレンス時の出力（音声内容が医療・診療・症例検討に関連する場合）
+音声の内容が医療・診療・症例検討・カンファレンスに関連する場合は、参加者・役割の推測は不要とする。発言内容そのものから記録し、以下の点を厳守すること：
+- 診断名・略語（DM、HF、COPD等）・検査値は正確に記載
+- 医療用語は漢字・英語で統一（例：心不全→HF、糖尿病→DM、慢性閉塞性肺疾患→COPD）
+- 症例の概要・検討経過・決定事項・今後の方針を、発話内容から抽出して記載
+
 # 出力フォーマット
 
 ## 1. 🎯 概要 (Executive Summary)
 会議の目的と、決定された結論を記載してください。（5〜7行程度、重要な決定は全て含めること）
+※医療系の場合は、症例の要点と検討の結論を含めること。
 
 ## 2. 🧠 主要トピック (Mind Map Style)
 議論された内容を論理的な階層構造（箇条書き）で整理してください。各トピックの詳細事実・議論のポイントを2〜3文以上で記載すること。
+※医療系の場合は、症例の概要・診断・治療・検査などの観点で整理すること。
 - トピックA
   - 詳細事実（具体的に）
   - 議論のポイント（誰が何を主張したか）
@@ -1891,14 +1948,20 @@ class RecorderApp {
 - **発言者を区別**して記載（話者A、話者B など）
 - 各発言の**要点を2〜3文以上**で記載
 - 議論の対立・合意・保留など、**議論の流れが分かるように**記載
+- 医療用語・診断名・数値は聞き取れた通り正確に記載すること
 
 ## 4. ✅ 決定事項 (Decisions)
 - [決定] 確定した事項を具体的に記載
 - [保留] 保留となった事項とその理由
+※医療系の場合は、治療方針・処置・検査オーダー等を含めること。
 
 ## 5. 🚀 ネクストアクション (To-Do)
 誰が、いつまでに、何をやるかを抽出してください。不明な場合は「担当者未定」としてタスクのみ記載すること。
+※医療系の場合は、追加検査・処置・フォローアップ等を発言内容から記載。担当・期限が言及されていなければ省略可。
 - [ ] タスク内容 (担当: 〇〇 / 期限: 〇〇)
+
+## 6. ⚠️ 不明瞭・聞き取れなかった箇所
+- [該当する場合は時系列で記載。該当なしの場合は「該当なし」と記載]
 
 ---
 (音声が途中から始まっている場合は文脈を補完して記録してください)
@@ -1911,6 +1974,12 @@ class RecorderApp {
 - **用語**: 専門用語は正確に漢字・英語で記載すること（例: 心不全→HF、肺炎→Pneumonia）。
 - **除外**: 「あー」「えー」などのフィラー、無関係な世間話。
 - **推論**: 誰がキーパーソン（決定権者）かを文脈から推測し、その発言を重視すること。
+
+# 聞き取りの厳格ルール（必須）
+- 聞き取れなかった・不明瞭な部分は「[聞き取れず]」と明記し、推測や創作で補完しないこと。
+- 確信が持てない発言は「[要確認]」と記載し、憶測で記載しないこと。
+- 音声が雑音で判別できない場合は、その旨を記載すること。
+- 曖昧な聞き取りを「らしい」「かもしれない」で補完しないこと。
 
 # 個人情報保護（必須・最重要）
 以下の個人情報は必ず削除または匿名化してください：
@@ -1946,6 +2015,9 @@ class RecorderApp {
 ## 5. 📝 補足・特記事項
 （録音状況が悪かった場合や、特に記録しておくべきトラブルの予兆など）
 
+## 6. ⚠️ 不明瞭・聞き取れなかった箇所
+- [該当する場合は時系列で記載。該当なしの場合は「該当なし」と記載]
+
 ---
 (以下、音声が途中から始まっている場合は文脈を補完して記録してください)
 `,
@@ -1957,6 +2029,12 @@ class RecorderApp {
 - 医療情報は正確に記録することが重要ですが、個人を特定できる情報は一切記録しないこと。
 - 緊急性の判断に必要な情報を優先的に抽出すること。
 - マークダウン形式で見やすく整形すること。
+
+# 聞き取りの厳格ルール（必須）
+- 聞き取れなかった・不明瞭な部分は「[聞き取れず]」と明記し、推測や創作で補完しないこと。
+- 確信が持てない発言は「[要確認]」と記載し、憶測で記載しないこと。
+- 音声が雑音で判別できない場合は、その旨を記載すること。
+- 曖昧な聞き取りを「らしい」「かもしれない」で補完しないこと。
 
 # 個人情報保護（必須・最重要）
 以下の個人情報は必ず削除または匿名化してください：
@@ -1995,6 +2073,9 @@ class RecorderApp {
 
 ## 5. 📝 その他 (Additional Information)
 その他、重要な情報があれば記載してください。
+
+## 6. ⚠️ 不明瞭・聞き取れなかった箇所
+- [該当する場合は時系列で記載。該当なしの場合は「該当なし」と記載]
 
 ---
 (以下、音声が途中から始まっている場合は文脈を補完して要約してください)
@@ -2231,6 +2312,7 @@ class RecorderApp {
 
     /**
      * IndexedDB: 音声データを保存（API失敗時の再送信用）
+     * ※ArrayBufferを先に取得してからトランザクションを開始（TransactionInactiveError防止）
      */
     async saveAudioToIndexedDB(logId, blob, mimeType) {
         if (!indexedDB || !blob) {
@@ -2242,26 +2324,30 @@ class RecorderApp {
             console.warn('[IndexedDB] save skipped: DB not available');
             return;
         }
+        let arrayBuffer;
+        try {
+            arrayBuffer = blob.arrayBuffer ? await blob.arrayBuffer() : await new Promise((res, rej) => {
+                const r = new FileReader();
+                r.onloadend = () => res(r.result);
+                r.onerror = rej;
+                r.readAsArrayBuffer(blob);
+            });
+        } catch (e) {
+            console.warn('[IndexedDB] blob read error:', e);
+            return;
+        }
         return new Promise((resolve) => {
             const tx = this.audioDB.transaction(this.AUDIO_STORE_NAME, 'readwrite');
             const store = tx.objectStore(this.AUDIO_STORE_NAME);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                store.put({ logId, arrayBuffer: reader.result, mimeType: mimeType || this.recordingMimeType });
-                tx.oncomplete = () => {
-                    console.log('[IndexedDB] saved:', logId, `(${(blob.size / 1024).toFixed(1)}KB)`);
-                    resolve();
-                };
-                tx.onerror = () => {
-                    console.warn('[IndexedDB] save error:', tx.error);
-                    resolve();
-                };
-            };
-            reader.onerror = () => {
-                console.warn('[IndexedDB] FileReader error:', reader.error);
+            store.put({ logId, arrayBuffer, mimeType: mimeType || this.recordingMimeType });
+            tx.oncomplete = () => {
+                console.log('[IndexedDB] saved:', logId, `(${(blob.size / 1024).toFixed(1)}KB)`);
                 resolve();
             };
-            reader.readAsArrayBuffer(blob);
+            tx.onerror = () => {
+                console.warn('[IndexedDB] save error:', tx.error);
+                resolve();
+            };
         });
     }
 
@@ -2389,11 +2475,14 @@ class RecorderApp {
         const contentDiv = document.querySelector(`#${logId} .log-content`);
         const mimeType = mimeTypeOverride || this.recordingMimeType || 'audio/webm';
 
-        // IndexedDBに音声を保存（API失敗時の再送信用）
-        await this.saveAudioToIndexedDB(logId, blob, mimeType);
-
+        // IndexedDB保存とAPI呼び出しを並列実行（要約までの待ち時間を短縮）
         try {
-            const markdown = await this.executeAudioApiCall(blob, mimeType);
+            const [, apiResult] = await Promise.allSettled([
+                this.saveAudioToIndexedDB(logId, blob, mimeType),
+                this.executeAudioApiCall(blob, mimeType)
+            ]);
+            if (apiResult.status === 'rejected') throw apiResult.reason;
+            const markdown = apiResult.value;
             contentDiv.classList.remove('loading');
             contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
             contentDiv.dataset.rawMarkdown = markdown;
