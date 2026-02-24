@@ -565,7 +565,7 @@
         }
 
         .settings-panel.open {
-            max-height: 500px;
+            max-height: 2000px;
             margin-bottom: 20px;
         }
 
@@ -1090,10 +1090,31 @@
         <h3 style="margin: 0;">📝 要約ログ</h3>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <input type="file" id="audioFileInput" accept="audio/*,.m4a,.aac,.mp4,.mp3,.wav,.webm,.ogg,.flac" style="display: none;">
-            <button type="button" id="btnLoadFile" class="file-load-btn">📁 ファイルから読み込み</button>
+            <button type="button" id="btnLoadFile" class="file-load-btn">📁 音声ファイル</button>
+            <input type="file" id="textFileInput" accept=".txt,.text,.md,.csv" style="display: none;">
+            <button type="button" id="btnLoadTextFile" class="file-load-btn">📄 テキストファイル</button>
             <button id="btnExportAll" class="export-all-btn">📥 全ログをエクスポート</button>
         </div>
     </div>
+
+    <div class="input-group" id="textInputSection">
+        <div class="settings-toggle" id="textInputToggle" style="cursor: pointer;">
+            <div class="settings-toggle-content">
+                <span class="settings-icon">📝</span>
+                <label style="margin: 0; cursor: pointer; font-weight: 500;">テキスト貼り付けで要約</label>
+            </div>
+            <span style="font-size: 0.875rem; color: var(--text-muted); transition: transform 0.3s;">▼</span>
+        </div>
+        <div class="settings-panel" id="textInputPanel">
+            <textarea id="textInputArea" placeholder="ここにテキストを貼り付け（ボイスメモの文字起こし等）..." style="width: 100%; min-height: 120px; padding: 12px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--text-color); font-size: 0.9375rem; resize: vertical; box-sizing: border-box; font-family: inherit;"></textarea>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+                <button type="button" id="btnSubmitText" style="flex: 1; padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9375rem; font-weight: 500;">🚀 テキストを要約</button>
+                <button type="button" id="btnClearText" style="padding: 12px 16px; background: var(--input-bg); color: var(--text-muted); border: 1px solid var(--input-border); border-radius: 8px; cursor: pointer;">✕</button>
+            </div>
+            <small style="display: block; margin-top: 8px;">※選択中のモード（病状説明・会議録等）のプロンプトで整理されます。音声送信より高速・低コストです。</small>
+        </div>
+    </div>
+
     <div id="logs"></div>
         </div>
     </div>
@@ -1168,6 +1189,11 @@ class RecorderApp {
         this.btnExportAll = document.getElementById('btnExportAll');
         this.audioFileInput = document.getElementById('audioFileInput');
         this.btnLoadFile = document.getElementById('btnLoadFile');
+        this.textFileInput = document.getElementById('textFileInput');
+        this.btnLoadTextFile = document.getElementById('btnLoadTextFile');
+        this.textInputArea = document.getElementById('textInputArea');
+        this.btnSubmitText = document.getElementById('btnSubmitText');
+        this.btnClearText = document.getElementById('btnClearText');
         this.statusPanel = null;
         this.rpmProgressBar = document.getElementById('rpmProgressBar');
         this.rpdProgressBar = document.getElementById('rpdProgressBar');
@@ -1275,10 +1301,75 @@ class RecorderApp {
             this.btnExportAll.addEventListener('click', () => this.exportAllLogs());
         }
 
-        // ファイルから読み込み
+        // 音声ファイルから読み込み
         if (this.btnLoadFile && this.audioFileInput) {
             this.btnLoadFile.addEventListener('click', () => this.audioFileInput.click());
             this.audioFileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        }
+
+        // テキストファイルから読み込み
+        if (this.btnLoadTextFile && this.textFileInput) {
+            this.btnLoadTextFile.addEventListener('click', () => this.textFileInput.click());
+            this.textFileInput.addEventListener('change', (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const showText = (text) => {
+                    if (this.textInputArea) this.textInputArea.value = text;
+                    const panel = document.getElementById('textInputPanel');
+                    if (panel && !panel.classList.contains('open')) panel.classList.add('open');
+                };
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const text = ev.target.result;
+                    if (text && !text.includes('\uFFFD')) {
+                        showText(text);
+                    } else {
+                        const reader2 = new FileReader();
+                        reader2.onload = (ev2) => showText(ev2.target.result);
+                        reader2.readAsText(file, 'Shift_JIS');
+                    }
+                };
+                reader.readAsText(file, 'UTF-8');
+                e.target.value = '';
+            });
+        }
+
+        // テキスト送信ボタン
+        if (this.btnSubmitText) {
+            this.btnSubmitText.addEventListener('click', async () => {
+                const text = this.textInputArea?.value?.trim();
+                if (!text) { alert('テキストを入力してください。'); return; }
+                const apiKey = this.getCurrentApiKey();
+                if (!apiKey) { alert('APIキーを入力してください。'); this.showSettingsView(); return; }
+                this.btnSubmitText.disabled = true;
+                this.btnSubmitText.textContent = '⏳ 処理中...';
+                try {
+                    await this.processTextInput(text);
+                    this.textInputArea.value = '';
+                } finally {
+                    this.btnSubmitText.disabled = false;
+                    this.btnSubmitText.textContent = '🚀 テキストを要約';
+                }
+            });
+        }
+
+        // テキストクリアボタン
+        if (this.btnClearText) {
+            this.btnClearText.addEventListener('click', () => {
+                if (this.textInputArea) this.textInputArea.value = '';
+            });
+        }
+
+        // テキスト入力パネルのトグル
+        const textInputToggle = document.getElementById('textInputToggle');
+        const textInputPanel = document.getElementById('textInputPanel');
+        if (textInputToggle && textInputPanel) {
+            textInputToggle.addEventListener('click', () => {
+                textInputPanel.classList.toggle('open');
+                textInputToggle.classList.toggle('active');
+                const arrow = textInputToggle.querySelector('span:last-child');
+                if (arrow) arrow.style.transform = textInputPanel.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+            });
         }
 
         // Update Model Display
@@ -2441,6 +2532,94 @@ class RecorderApp {
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!text) throw new Error(data.error?.message || 'API応答の形式が不正です');
         return text;
+    }
+
+    /**
+     * テキストをGemini APIに送信し、整理されたテキストを返す
+     */
+    async executeTextApiCall(inputText) {
+        this.checkRateLimit();
+        const apiKey = this.getCurrentApiKey();
+        if (!apiKey) throw new Error('APIキーが設定されていません');
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.MODEL_NAME}:generateContent?key=${apiKey}`;
+        const promptText = this.getPromptTemplate()
+            .replace(/提供された音声データを分析し/g, '提供されたテキストデータを分析し')
+            .replace(/音声データ/g, 'テキストデータ')
+            .replace(/音声が途中から/g, 'テキストが途中から')
+            .replace(/音声が雑音で/g, 'テキストが不明瞭で')
+            .replace(/録音データを分析し/g, 'テキストデータを分析し');
+        const payload = {
+            contents: [{
+                parts: [
+                    { text: promptText + '\n\n---\n以下が入力テキストです:\n\n' + inputText }
+                ]
+            }]
+        };
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000);
+        let response;
+        try {
+            response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+        } catch (e) {
+            clearTimeout(timeoutId);
+            if (e.name === 'AbortError') throw new Error('API応答がタイムアウトしました（90秒）。');
+            throw e;
+        }
+        clearTimeout(timeoutId);
+        const data = await response.json().catch(() => ({}));
+        if (data.error) throw new Error(data.error.message || String(data.error));
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${data.error?.message || response.statusText || 'Unknown error'}`);
+        this.incrementRateLimit();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error(data.error?.message || 'API応答の形式が不正です');
+        return text;
+    }
+
+    /**
+     * テキスト入力を処理してGemini APIで整理・要約する
+     */
+    async processTextInput(inputText) {
+        const segmentId = this.segmentCounter;
+        const logId = `log-${segmentId}`;
+        const timestamp = new Date().toLocaleTimeString();
+
+        const logHtml = `
+            <div class="log-entry" id="${logId}">
+                <div class="log-header">
+                    <strong>テキスト入力 #${segmentId}</strong>
+                    <span>${timestamp}</span>
+                </div>
+                <div class="log-content loading">Geminiへ送信中... テキスト処理中...</div>
+                <div class="log-actions" style="display: none;">
+                    <button class="log-action-btn copy" onclick="app.copyLog('${logId}', this)">📋 コピー</button>
+                    <button class="log-action-btn save" onclick="app.saveLog('${logId}', ${segmentId}, '${timestamp}')">💾 保存</button>
+                    <button class="log-action-btn share" onclick="app.shareLog('${logId}', ${segmentId}, '${timestamp}')">🔗 共有</button>
+                </div>
+            </div>
+        `;
+        this.logsContainer.insertAdjacentHTML('afterbegin', logHtml);
+        const contentDiv = document.querySelector(`#${logId} .log-content`);
+        this.segmentCounter++;
+        if (this.segmentCounterDisplay) this.segmentCounterDisplay.textContent = this.segmentCounter;
+
+        try {
+            const markdown = await this.executeTextApiCall(inputText);
+            contentDiv.classList.remove('loading');
+            contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
+            contentDiv.dataset.rawMarkdown = markdown;
+            const actionsDiv = document.querySelector(`#${logId} .log-actions`);
+            if (actionsDiv) actionsDiv.style.display = 'flex';
+        } catch (err) {
+            contentDiv.classList.remove('loading');
+            contentDiv.classList.add('error');
+            contentDiv.textContent = `エラーが発生しました: ${err.message}`;
+            console.error('[processTextInput]', err);
+        }
     }
 
     /**
