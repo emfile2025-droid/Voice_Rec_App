@@ -2406,9 +2406,9 @@ class RecorderApp {
 ---
 (音声が途中から始まっている場合は文脈を補完して要約してください)
 
-# 必須：PubMed検索用キーワード
-要約の最後に、PubMedで文献検索する際に使える英語キーワードを5〜10個、カンマ区切りで1行で出力してください。形式は必ず次のとおりにすること（この行は要約本文には表示されません）：
-KEYWORDS: keyword1, keyword2, keyword3, keyword4, keyword5
+# 必須：PubMed検索用キーワード（2語のみ・OR検索用）
+要約の最後に、**関連性が高く教育的意義の高い英語キーワードを2つだけ**、カンマ区切りで1行で出力してください。この2語はPubMedで「keyword1 OR keyword2」として検索されます。複数並べると検索が走りにくいため、厳選した2語のみにすること。形式は必ず次のとおり（この行は要約本文には表示されません）：
+KEYWORDS: keyword1, keyword2
 `
         };
         
@@ -3075,11 +3075,13 @@ KEYWORDS: keyword1, keyword2, keyword3, keyword4, keyword5
     }
 
     /**
-     * キーワード配列から PubMed 検索URLを生成
+     * キーワード配列から PubMed 検索URLを生成（最大2語を OR で結合）
      */
     buildPubMedUrl(keywords) {
         if (!keywords || keywords.length === 0) return '';
-        const q = keywords.map(k => encodeURIComponent(k)).join('+');
+        const two = keywords.slice(0, 2).map(k => encodeURIComponent(k.trim())).filter(Boolean);
+        if (two.length === 0) return '';
+        const q = two.length === 2 ? `${two[0]}+OR+${two[1]}` : two[0];
         return `https://pubmed.ncbi.nlm.nih.gov/?term=${q}`;
     }
 
