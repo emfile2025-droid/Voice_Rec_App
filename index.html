@@ -511,6 +511,17 @@
             color: var(--primary-color);
         }
 
+        a.log-action-btn.log-action-pubmed {
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+        a.log-action-btn.log-action-pubmed:hover {
+            text-decoration: none;
+        }
+
         .log-retry-actions {
             display: flex;
             gap: 8px;
@@ -2837,11 +2848,13 @@ KEYWORDS: keyword1, keyword2, keyword3, keyword4, keyword5
 
         try {
             const markdown = await this.executeTextApiCall(inputText);
+            const { displayMarkdown, keywords } = this.parseKeywordsFromMarkdown(markdown);
             contentDiv.classList.remove('loading');
-            contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
-            contentDiv.dataset.rawMarkdown = markdown;
+            contentDiv.innerHTML = this.simpleMarkdownParse(displayMarkdown);
+            contentDiv.dataset.rawMarkdown = displayMarkdown;
             const actionsDiv = document.querySelector(`#${logId} .log-actions`);
             if (actionsDiv) actionsDiv.style.display = 'flex';
+            this.attachPubMedLink(logId, keywords);
         } catch (err) {
             contentDiv.classList.remove('loading');
             contentDiv.classList.add('error');
@@ -2890,15 +2903,17 @@ KEYWORDS: keyword1, keyword2, keyword3, keyword4, keyword5
             ]);
             if (apiResult.status === 'rejected') throw apiResult.reason;
             const markdown = apiResult.value;
+            const { displayMarkdown, keywords } = this.parseKeywordsFromMarkdown(markdown);
             contentDiv.classList.remove('loading');
-            contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
-            contentDiv.dataset.rawMarkdown = markdown;
+            contentDiv.innerHTML = this.simpleMarkdownParse(displayMarkdown);
+            contentDiv.dataset.rawMarkdown = displayMarkdown;
 
             // Show action buttons after content is loaded
             const actionsDiv = document.querySelector(`#${logId} .log-actions`);
             if (actionsDiv) {
                 actionsDiv.style.display = 'flex';
             }
+            this.attachPubMedLink(logId, keywords);
 
             // 要約成功: IndexedDBから音声データを削除
             await this.deleteAudioFromIndexedDB(logId);
@@ -2947,12 +2962,14 @@ KEYWORDS: keyword1, keyword2, keyword3, keyword4, keyword5
 
         try {
             const markdown = await this.executeAudioApiCall(stored.blob, stored.mimeType);
+            const { displayMarkdown, keywords } = this.parseKeywordsFromMarkdown(markdown);
             contentDiv.classList.remove('loading');
-            contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
-            contentDiv.dataset.rawMarkdown = markdown;
+            contentDiv.innerHTML = this.simpleMarkdownParse(displayMarkdown);
+            contentDiv.dataset.rawMarkdown = displayMarkdown;
 
             const actionsDiv = document.querySelector(`#${logId} .log-actions`);
             if (actionsDiv) actionsDiv.style.display = 'flex';
+            this.attachPubMedLink(logId, keywords);
             await this.deleteAudioFromIndexedDB(logId);
         } catch (e) {
             contentDiv.classList.remove('loading');
@@ -3036,6 +3053,53 @@ KEYWORDS: keyword1, keyword2, keyword3, keyword4, keyword5
             .replace(/^## (.*$)/gim, '<strong>$1</strong>')
             .replace(/^\* (.*$)/gim, '• $1')
             .replace(/\n/g, '<br>');
+    }
+
+    /**
+     * KEYWORDS: 行をパースし、表示用マークダウンとキーワード配列を返す
+     * @returns {{ displayMarkdown: string, keywords: string[] }}
+     */
+    parseKeywordsFromMarkdown(markdown) {
+        const m = markdown.match(/KEYWORDS:\s*(.+?)(?:\n|$)/is);
+        const keywords = m
+            ? m[1].split(',').map(k => k.trim()).filter(Boolean)
+            : [];
+        let displayMarkdown = markdown;
+        if (keywords.length > 0) {
+            // 必須：PubMed... から KEYWORDS: 行までを削除
+            displayMarkdown = markdown.replace(/\n*#?\s*必須：?.*PubMed[\s\S]*?KEYWORDS:.*$/im, '').trim();
+            // KEYWORDS: のみの行も削除（上記にマッチしなかった場合）
+            displayMarkdown = displayMarkdown.replace(/\n*\s*KEYWORDS:.*$/im, '').trim();
+        }
+        return { displayMarkdown, keywords };
+    }
+
+    /**
+     * キーワード配列から PubMed 検索URLを生成
+     */
+    buildPubMedUrl(keywords) {
+        if (!keywords || keywords.length === 0) return '';
+        const q = keywords.map(k => encodeURIComponent(k)).join('+');
+        return `https://pubmed.ncbi.nlm.nih.gov/?term=${q}`;
+    }
+
+    /**
+     * ログエントリに「参考文献」リンクを追加（キーワードがある場合のみ）
+     */
+    attachPubMedLink(logId, keywords) {
+        if (!keywords || keywords.length === 0) return;
+        const actionsDiv = document.querySelector(`#${logId} .log-actions`);
+        if (!actionsDiv) return;
+        if (actionsDiv.querySelector('.log-action-pubmed')) return; // 既にある場合はスキップ
+        const url = this.buildPubMedUrl(keywords);
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.className = 'log-action-btn log-action-pubmed';
+        a.textContent = '📚 参考文献';
+        a.title = '以下のキーワードでPubMedを検索（新しいタブで開きます）';
+        actionsDiv.appendChild(a);
     }
 
     /**
