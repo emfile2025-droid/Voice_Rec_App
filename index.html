@@ -129,6 +129,19 @@
             font-size: 0.8125rem;
         }
 
+        .medical-mode-notice {
+            font-size: 0.8125rem;
+            line-height: 1.5;
+            color: #92400e;
+            background: #fffbeb;
+            border: 1px solid var(--warning-color);
+            border-left: 4px solid var(--warning-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+        }
+        .medical-mode-notice strong { color: #b45309; }
+
         .mode-selector {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -1103,11 +1116,7 @@
             </div>
             <div class="mode-option">
                 <input type="radio" id="mode-medical" name="recordingMode" value="medical">
-                <label for="mode-medical">🏥 病状説明モード<br><small>診察記録</small></label>
-            </div>
-            <div class="mode-option">
-                <input type="radio" id="mode-patient" name="recordingMode" value="patient">
-                <label for="mode-patient">📝 傷病者情報モード<br><small>患者情報</small></label>
+                <label for="mode-medical">🏥 病状説明モード<br><small>テキストのみ・要約</small></label>
             </div>
             <div class="mode-option">
                 <input type="radio" id="mode-lecture" name="recordingMode" value="lecture">
@@ -1216,6 +1225,7 @@
                 </div>
             </div>
             <div id="subpanel-paste" class="sub-tab-panel">
+                <div id="medicalModeNotice" class="medical-mode-notice" style="display: none;" role="alert">⚠️ 病状説明モードではテキスト入力のみです。氏名・患者ID・生年月日等の個人を特定できる情報は、<strong>入力前に伏せ字または削除</strong>してから貼り付けてください。</div>
                 <textarea id="textInputArea" placeholder="ここにテキストを貼り付け（ボイスメモの文字起こし等）..." style="width: 100%; min-height: 120px; padding: 12px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--text-color); font-size: 0.9375rem; resize: vertical; box-sizing: border-box; font-family: inherit;"></textarea>
                 <div style="display: flex; gap: 8px; margin-top: 8px;">
                     <button type="button" id="btnSubmitText" style="flex: 1; padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9375rem; font-weight: 500;">🚀 テキストを要約</button>
@@ -1361,7 +1371,9 @@ class RecorderApp {
         }
         
         // Load Mode from localStorage
-        const savedMode = localStorage.getItem('recording_mode') || 'meeting';
+        // 傷病者モード廃止のため patient は meeting にフォールバック
+        const savedModeRaw = localStorage.getItem('recording_mode') || 'meeting';
+        const savedMode = savedModeRaw === 'patient' ? 'meeting' : savedModeRaw;
         const modeInput = document.querySelector(`input[name="recordingMode"][value="${savedMode}"]`);
         if (modeInput) modeInput.checked = true;
         else {
@@ -1642,6 +1654,13 @@ class RecorderApp {
         const file = event.target.files?.[0];
         if (!file) return;
 
+        const selectedMode = document.querySelector('input[name="recordingMode"]:checked')?.value;
+        if (selectedMode === 'medical') {
+            alert('病状説明モードでは音声ファイルの送信はできません。\nテキストを貼り付けて要約してください。');
+            event.target.value = '';
+            return;
+        }
+
         const apiKey = this.getCurrentApiKey();
         if (!apiKey) {
             alert('APIキーを入力してください。設定画面でAPIキーを登録してください。');
@@ -1686,6 +1705,12 @@ class RecorderApp {
         if (!apiKey) {
             alert('APIキーを入力してください。設定画面でAPIキーを登録してください。');
             this.showView('settings');
+            return;
+        }
+
+        const selectedMode = document.querySelector('input[name="recordingMode"]:checked')?.value;
+        if (selectedMode === 'medical') {
+            alert('病状説明モードでは録音の送信はできません。\nテキストを貼り付けて要約してください。');
             return;
         }
 
@@ -2079,6 +2104,9 @@ class RecorderApp {
     handleModeChange() {
         const selectedMode = document.querySelector('input[name="recordingMode"]:checked')?.value;
         
+        const medicalNotice = document.getElementById('medicalModeNotice');
+        if (medicalNotice) medicalNotice.style.display = selectedMode === 'medical' ? 'block' : 'none';
+
         if (selectedMode === 'secure') {
             // 秘匿性の高い会議モード: 自動的に有料APIとgemini-2.5-proを選択
             // 有料APIキーを探す（名前に「有料」「paid」「pro」などが含まれる）
@@ -2302,66 +2330,6 @@ class RecorderApp {
 
 ---
 (以下、音声が途中から始まっている場合は文脈を補完して記録してください)
-`,
-            patient: `
-あなたは優秀な医療記録の専門家です。提供された音声データを分析し、以下のフォーマットに厳格に従って日本語で傷病者情報を整理してください。
-
-# 役割と制約
-- 「えー」「あー」などのフィラーや、無関係な雑談は除外すること。
-- 医療情報は正確に記録することが重要ですが、個人を特定できる情報は一切記録しないこと。
-- 緊急性の判断に必要な情報を優先的に抽出すること。
-- マークダウン形式で見やすく整形すること。
-
-# 聞き取りの厳格ルール（必須）
-- 聞き取れなかった・不明瞭な部分は「[聞き取れず]」と明記し、推測や創作で補完しないこと。
-- 確信が持てない発言は「[要確認]」と記載し、憶測で記載しないこと。
-- 音声が雑音で判別できない場合は、その旨を記載すること。
-- 曖昧な聞き取りを「らしい」「かもしれない」で補完しないこと。
-
-# 個人情報保護（必須・最重要）
-以下の個人情報は必ず削除または匿名化してください：
-- 傷病者の氏名、フルネーム、イニシャル（「傷病者A」「傷病者B」などに置換）
-- 住所、郵便番号、具体的な地名（「○○県」「○○市」などに置換）
-- 電話番号、メールアドレス、連絡先情報
-- 生年月日、年齢（必要に応じて年代のみ記載、例：「30代女性」）
-- 勤務先、学校名、組織名（「○○会社」「○○大学」などに置換）
-- 患者ID、カルテ番号、その他識別番号
-- 家族構成や家族の個人情報
-- その他個人を特定できる情報
-- 個人情報が含まれる場合は、該当箇所を「[個人情報削除]」と記載すること
-- 医療情報（症状、状態など）は記録しますが、個人を特定できる情報は一切含めないこと
-- **匿名化を徹底し、実名や特定可能な情報は一切残さないこと。**
-
-# 出力フォーマット
-
-## 1. 👤 基本情報 (Basic Information)
-- 年齢・性別（言及されている場合）
-- 受傷・発症の日時・場所
-- 状況・経緯
-
-## 2. 🚨 現状・症状 (Current Condition / Symptoms)
-- 現在の状態（意識レベル、バイタルサインなど）
-- 主な症状・訴え
-- 外傷の有無とその詳細（部位、程度）
-
-## 3. 🏥 既往歴・アレルギー (Medical History / Allergies)
-- 既往疾患（言及されている場合）
-- アレルギー歴（薬剤、食物など）
-- 常用薬（言及されている場合）
-
-## 4. ⚠️ 緊急度・対応 (Urgency / Response)
-- 緊急度の評価
-- 必要な対応・処置
-- 搬送先・受診先の情報（言及されている場合）
-
-## 5. 📝 その他 (Additional Information)
-その他、重要な情報があれば記載してください。
-
-## 6. ⚠️ 不明瞭・聞き取れなかった箇所
-- [該当する場合は時系列で記載。該当なしの場合は「該当なし」と記載]
-
----
-(以下、音声が途中から始まっている場合は文脈を補完して要約してください)
 `,
             lecture: `
 あなたは講義・レクチャーの要約の専門家です。提供された音声（またはテキスト）を分析し、聴講者が後から振り返りやすい要約を作成してください。
