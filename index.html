@@ -524,17 +524,6 @@
             color: var(--primary-color);
         }
 
-        a.log-action-btn.log-action-pubmed {
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            box-sizing: border-box;
-        }
-        a.log-action-btn.log-action-pubmed:hover {
-            text-decoration: none;
-        }
-
         .log-retry-actions {
             display: flex;
             gap: 8px;
@@ -777,19 +766,6 @@
             background: #2563eb;
         }
 
-        .log-output-btn {
-            padding: 8px 14px;
-            font-size: 0.8125rem;
-            background: var(--input-bg);
-            color: var(--text-color);
-            border: 1px solid var(--input-border);
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        .log-output-btn:hover {
-            background: var(--card-border);
-        }
-
         .app-update-btn {
             padding: 8px 16px;
             font-size: 0.875rem;
@@ -861,7 +837,7 @@
 
         /* ===== 録音画面（メインビュー）Zello風 ===== */
         body { padding: 0; margin: 0; display: block; }
-        .app-wrapper { min-height: 100vh; position: relative; width: 100%; padding-bottom: calc(56px + env(safe-area-inset-bottom, 0)); }
+        .app-wrapper { min-height: 100vh; position: relative; width: 100%; }
         
         .view { display: none; min-height: 100vh; }
         .view.active { display: flex; flex-direction: column; }
@@ -936,7 +912,7 @@
         
         .timer-badge {
             position: fixed;
-            bottom: max(72px, calc(56px + env(safe-area-inset-bottom) + 16px));
+            bottom: max(24px, env(safe-area-inset-bottom));
             right: max(24px, env(safe-area-inset-right));
             font-family: monospace;
             font-size: 1.25rem;
@@ -975,80 +951,14 @@
         }
         .back-to-main:hover { background: #f0f9ff; }
 
-        /* 下端タブバー */
-        .bottom-tab-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: calc(56px + env(safe-area-inset-bottom, 0));
-            background: var(--card-bg);
-            border-top: 1px solid var(--card-border);
-            display: flex;
-            justify-content: space-around;
-            align-items: flex-start;
-            padding-top: 8px;
-            padding-bottom: env(safe-area-inset-bottom, 0);
-            z-index: 200;
-        }
-        .bottom-tab-btn {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-            padding: 6px 4px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: var(--text-muted);
-            font-size: 0.7rem;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .bottom-tab-btn .tab-icon { font-size: 1.5rem; }
-        .bottom-tab-btn.active { color: var(--primary-color); font-weight: 600; }
-
-        /* 入力画面・ログ画面 */
-        #input-view, #log-view {
-            background: var(--bg-color);
-            padding: 12px;
-            padding-bottom: 16px;
-            flex-direction: column;
-            align-items: center;
-        }
-        #input-view .container, #log-view .container { flex: 1; width: 100%; max-width: 800px; }
-        .sub-tab-bar {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 12px;
-        }
-        .sub-tab-btn {
-            flex: 1;
-            padding: 10px 8px;
-            border: 1px solid var(--input-border);
-            border-radius: 8px;
-            background: var(--input-bg);
-            color: var(--text-color);
-            font-size: 0.8125rem;
-            cursor: pointer;
-        }
-        .sub-tab-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
-        .sub-tab-panel { display: none; }
-        .sub-tab-panel.active { display: block; }
-
-        @media print {
-            .bottom-tab-bar, .settings-fab, .back-to-main, .log-output-buttons, .log-actions, .log-retry-actions { display: none !important; }
-            .view { display: block !important; }
-            #log-view .container { max-width: 100%; }
-        }
-
     </style>
 </head>
 <body>
 
 <div class="app-wrapper">
-    <!-- 1. マイク画面 -->
+    <!-- 録音画面（メインビュー） -->
     <div id="main-view" class="view active idle">
+        <button type="button" class="settings-fab" id="btnOpenSettings" aria-label="設定">⚙️</button>
         <div class="mic-button-wrapper">
             <button type="button" id="btnMic" class="mic-button idle" aria-label="録音">
                 <span class="mic-icon">🎙️</span>
@@ -1058,18 +968,17 @@
             <span id="timerDisplay">00:00</span>
             <span> #</span><span id="segmentCounterDisplay">1</span>
         </div>
-        <div style="position: fixed; bottom: max(72px, calc(56px + env(safe-area-inset-bottom) + 16px)); left: 24px; right: 24px; height: 4px; background: rgba(0,0,0,0.1); border-radius: 2px; overflow: hidden;">
-            <div id="segmentProgress" style="height: 100%; width: 0%; background: var(--primary-color); transition: width 0.3s;"></div>
-        </div>
     </div>
 
-    <!-- 2. 設定画面 -->
-    <div id="settings-view" class="view">
+    <!-- 設定画面 -->
+        <div id="settings-view" class="view">
+        <button type="button" class="back-to-main" id="btnBackToMain">← 録音画面に戻る</button>
         <div class="container">
     <div class="header-row">
         <h1>🎙️ Gemini Auto-Split Recorder</h1>
         <button type="button" id="btnAppUpdate" class="app-update-btn" title="キャッシュを削除して最新版を取得">🔄 アプリ更新</button>
     </div>
+    <!-- 以下は設定画面用。録音制御はメインビューのマイクボタンで行う -->
     
     <div class="input-group">
         <div class="settings-toggle" id="apiKeyToggle">
@@ -1104,7 +1013,7 @@
             <option value="gemini-2.5-pro">Gemini 2.5 Pro（有料・高精度）</option>
             <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（軽量）</option>
         </select>
-        <small>※秘匿性の高い会議モードでは自動的にGemini 2.5 Proが選択されます</small>
+        <small>※秘匿性の高い会議モードでは自動的にGemini 2.5 Proが選択されます。Pro選択時は各モードでより詳細な分析・整理を行います。</small>
     </div>
 
     <div class="input-group">
@@ -1117,10 +1026,6 @@
             <div class="mode-option">
                 <input type="radio" id="mode-medical" name="recordingMode" value="medical">
                 <label for="mode-medical">🏥 病状説明モード<br><small>テキストのみ・要約</small></label>
-            </div>
-            <div class="mode-option">
-                <input type="radio" id="mode-lecture" name="recordingMode" value="lecture">
-                <label for="mode-lecture">📚 レクチャーモード<br><small>講義要約・参考文献</small></label>
             </div>
             <div class="mode-option">
                 <input type="radio" id="mode-secure" name="recordingMode" value="secure">
@@ -1185,78 +1090,44 @@
         </div>
     </div>
 
-    <!-- モデル表示用 -->
+    <!-- モデル表示用（設定画面内） -->
     <div style="margin-bottom: 16px; font-size: 0.875rem; color: var(--text-muted);">
         使用モデル: <span class="model-name" id="modelDisplay">gemini-2.5-flash</span>
     </div>
-        </div>
-    </div>
 
-    <!-- 3. 入力画面（音声ファイル・テキストファイル・テキスト貼り付け） -->
-    <div id="input-view" class="view">
-        <div class="container">
-            <div class="header-row">
-                <h2 style="margin: 0 0 12px 0; font-size: 1.25rem;">ファイル／テキストで要約</h2>
-            </div>
-            <div class="sub-tab-bar">
-                <button type="button" class="sub-tab-btn active" data-subtab="audio">📁 音声ファイル</button>
-                <button type="button" class="sub-tab-btn" data-subtab="textfile">📄 テキストファイル</button>
-                <button type="button" class="sub-tab-btn" data-subtab="paste">📝 テキスト貼り付け</button>
-            </div>
+    <div class="log-header-section">
+        <h3 style="margin: 0;">📝 要約ログ</h3>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <input type="file" id="audioFileInput" accept="audio/*,.m4a,.aac,.mp4,.mp3,.wav,.webm,.ogg,.flac" style="display: none;">
+            <button type="button" id="btnLoadFile" class="file-load-btn">📁 音声ファイル</button>
             <input type="file" id="textFileInput" accept=".txt,.text,.md,.csv" style="display: none;">
-            <div id="subpanel-audio" class="sub-tab-panel active">
-                <p style="margin: 0 0 12px 0; font-size: 0.9375rem; color: var(--text-muted);">音声ファイルを選んで要約します。</p>
-                <div style="display: flex; gap: 8px;">
-                    <button type="button" id="btnLoadFile" class="file-load-btn" style="flex: 1;">📁 音声ファイルを選択</button>
-                    <button type="button" id="btnClearAudio" style="padding: 12px 16px; background: var(--input-bg); color: var(--text-muted); border: 1px solid var(--input-border); border-radius: 8px; cursor: pointer;">✕ クリア</button>
-                </div>
-                <small style="display: block; margin-top: 8px; color: var(--text-muted);">※18MB以下。目安：約15分（MP3／M4A等）</small>
-            </div>
-            <div id="subpanel-textfile" class="sub-tab-panel">
-                <p style="margin: 0 0 12px 0; font-size: 0.9375rem; color: var(--text-muted);">テキストファイルを選んで要約します。</p>
-                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                    <button type="button" id="btnLoadTextFile" class="file-load-btn" style="flex: 1;">📄 テキストファイルを選択</button>
-                    <button type="button" id="btnClearTextFile" style="padding: 12px 16px; background: var(--input-bg); color: var(--text-muted); border: 1px solid var(--input-border); border-radius: 8px; cursor: pointer;">✕ クリア</button>
-                </div>
-                <div id="textFilePreview" style="margin-top: 0; min-height: 80px; padding: 12px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); font-size: 0.875rem; white-space: pre-wrap; display: none;"></div>
-                <div style="display: none; gap: 8px; margin-top: 8px;" id="textFileSubmitRow">
-                    <button type="button" id="btnSubmitTextFile" style="flex: 1; padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer;">🚀 このテキストを要約</button>
-                </div>
-            </div>
-            <div id="subpanel-paste" class="sub-tab-panel">
-                <div id="medicalModeNotice" class="medical-mode-notice" style="display: none;" role="alert">⚠️ 病状説明モードではテキスト入力のみです。氏名・患者ID・生年月日等の個人を特定できる情報は、<strong>入力前に伏せ字または削除</strong>してから貼り付けてください。</div>
-                <textarea id="textInputArea" placeholder="ここにテキストを貼り付け（ボイスメモの文字起こし等）..." style="width: 100%; min-height: 120px; padding: 12px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--text-color); font-size: 0.9375rem; resize: vertical; box-sizing: border-box; font-family: inherit;"></textarea>
-                <div style="display: flex; gap: 8px; margin-top: 8px;">
-                    <button type="button" id="btnSubmitText" style="flex: 1; padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9375rem; font-weight: 500;">🚀 テキストを要約</button>
-                    <button type="button" id="btnClearText" style="padding: 12px 16px; background: var(--input-bg); color: var(--text-muted); border: 1px solid var(--input-border); border-radius: 8px; cursor: pointer;">✕ クリア</button>
-                </div>
-                <small style="display: block; margin-top: 8px;">※選択中のモード（病状説明・会議録等）のプロンプトで整理されます。</small>
-            </div>
+            <button type="button" id="btnLoadTextFile" class="file-load-btn">📄 テキストファイル</button>
+            <button id="btnExportAll" class="export-all-btn">📥 全ログをエクスポート</button>
         </div>
     </div>
 
-    <!-- 4. 要約出力 -->
-    <div id="log-view" class="view">
-        <div class="container">
-            <h3 style="margin: 0 0 12px 0;">📋 要約出力</h3>
-            <div class="log-output-buttons" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
-                <button type="button" id="btnCopyAll" class="log-output-btn">📋 コピー</button>
-                <button type="button" id="btnExportAll" class="log-output-btn">💾 出力</button>
-                <button type="button" id="btnPrintLogs" class="log-output-btn">🖨️ 印刷</button>
-                <button type="button" id="btnShareLogs" class="log-output-btn">📤 共有</button>
+    <div class="input-group" id="textInputSection">
+        <div class="settings-toggle" id="textInputToggle" style="cursor: pointer;">
+            <div class="settings-toggle-content">
+                <span class="settings-icon">📝</span>
+                <label style="margin: 0; cursor: pointer; font-weight: 500;">テキスト貼り付けで要約</label>
             </div>
-            <div id="logs"></div>
+            <span style="font-size: 0.875rem; color: var(--text-muted); transition: transform 0.3s;">▼</span>
+        </div>
+        <div class="settings-panel" id="textInputPanel">
+            <div id="medicalModeNotice" class="medical-mode-notice" style="display: none;" role="alert">⚠️ 病状説明モードではテキスト入力のみです。氏名・患者ID・生年月日等の個人を特定できる情報は、<strong>入力前に伏せ字または削除</strong>してから貼り付けてください。</div>
+            <textarea id="textInputArea" placeholder="ここにテキストを貼り付け（ボイスメモの文字起こし等）..." style="width: 100%; min-height: 120px; padding: 12px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--text-color); font-size: 0.9375rem; resize: vertical; box-sizing: border-box; font-family: inherit;"></textarea>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+                <button type="button" id="btnSubmitText" style="flex: 1; padding: 12px; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9375rem; font-weight: 500;">🚀 テキストを要約</button>
+                <button type="button" id="btnClearText" style="padding: 12px 16px; background: var(--input-bg); color: var(--text-muted); border: 1px solid var(--input-border); border-radius: 8px; cursor: pointer;">✕</button>
+            </div>
+            <small style="display: block; margin-top: 8px;">※選択中のモード（病状説明・会議録等）のプロンプトで整理されます。音声送信より高速・低コストです。</small>
         </div>
     </div>
 
-    <!-- 下端タブバー -->
-    <nav class="bottom-tab-bar" role="tablist">
-        <button type="button" class="bottom-tab-btn active" data-tab="main" aria-label="マイク"><span class="tab-icon">🎙️</span><span>マイク</span></button>
-        <button type="button" class="bottom-tab-btn" data-tab="settings" aria-label="設定"><span class="tab-icon">⚙️</span><span>設定</span></button>
-        <button type="button" class="bottom-tab-btn" data-tab="input" aria-label="入力"><span class="tab-icon">📄</span><span>入力</span></button>
-        <button type="button" class="bottom-tab-btn" data-tab="log" aria-label="要約出力"><span class="tab-icon">📋</span><span>要約出力</span></button>
-    </nav>
+    <div id="logs"></div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -1309,6 +1180,8 @@ class RecorderApp {
         this.timerDisplay = document.getElementById('timerDisplay');
         this.segmentCounterDisplay = document.getElementById('segmentCounterDisplay');
         this.progressBar = document.getElementById('segmentProgress');
+        this.btnOpenSettings = document.getElementById('btnOpenSettings');
+        this.btnBackToMain = document.getElementById('btnBackToMain');
         this.logsContainer = document.getElementById('logs');
         this.modeInputs = document.querySelectorAll('input[name="recordingMode"]');
         this.modelDisplay = document.getElementById('modelDisplay');
@@ -1331,9 +1204,6 @@ class RecorderApp {
         this.textInputArea = document.getElementById('textInputArea');
         this.btnSubmitText = document.getElementById('btnSubmitText');
         this.btnClearText = document.getElementById('btnClearText');
-        this.textFilePreview = document.getElementById('textFilePreview');
-        this.btnSubmitTextFile = document.getElementById('btnSubmitTextFile');
-        this.loadedTextFileContent = '';
         this.statusPanel = null;
         this.rpmProgressBar = document.getElementById('rpmProgressBar');
         this.rpdProgressBar = document.getElementById('rpdProgressBar');
@@ -1370,8 +1240,7 @@ class RecorderApp {
             this.addApiKey('既存のAPIキー', savedKey);
         }
         
-        // Load Mode from localStorage
-        // 傷病者モード廃止のため patient は meeting にフォールバック
+        // Load Mode from localStorage（傷病者モード廃止のため patient は meeting にフォールバック）
         const savedModeRaw = localStorage.getItem('recording_mode') || 'meeting';
         const savedMode = savedModeRaw === 'patient' ? 'meeting' : savedModeRaw;
         const modeInput = document.querySelector(`input[name="recordingMode"][value="${savedMode}"]`);
@@ -1438,14 +1307,10 @@ class RecorderApp {
         // Start Rate Limit Countdown Timer
         this.startRateLimitCountdown();
 
-        // 要約出力ボタン
-        const btnCopyAll = document.getElementById('btnCopyAll');
-        if (btnCopyAll) btnCopyAll.addEventListener('click', () => this.copyAllLogs());
-        if (this.btnExportAll) this.btnExportAll.addEventListener('click', () => this.exportAllLogs());
-        const btnPrintLogs = document.getElementById('btnPrintLogs');
-        if (btnPrintLogs) btnPrintLogs.addEventListener('click', () => this.printLogs());
-        const btnShareLogs = document.getElementById('btnShareLogs');
-        if (btnShareLogs) btnShareLogs.addEventListener('click', () => this.shareLogs());
+        // Export All Logs Button
+        if (this.btnExportAll) {
+            this.btnExportAll.addEventListener('click', () => this.exportAllLogs());
+        }
 
         // 音声ファイルから読み込み
         if (this.btnLoadFile && this.audioFileInput) {
@@ -1453,20 +1318,16 @@ class RecorderApp {
             this.audioFileInput.addEventListener('change', (e) => this.handleFileSelect(e));
         }
 
-        // テキストファイルから読み込み（入力画面の「テキストファイル」タブ）
+        // テキストファイルから読み込み
         if (this.btnLoadTextFile && this.textFileInput) {
             this.btnLoadTextFile.addEventListener('click', () => this.textFileInput.click());
             this.textFileInput.addEventListener('change', (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
                 const showText = (text) => {
-                    this.loadedTextFileContent = text;
-                    if (this.textFilePreview) {
-                        this.textFilePreview.textContent = text.slice(0, 500) + (text.length > 500 ? '…' : '');
-                        this.textFilePreview.style.display = 'block';
-                    }
-                    const row = document.getElementById('textFileSubmitRow');
-                    if (row) row.style.display = 'flex';
+                    if (this.textInputArea) this.textInputArea.value = text;
+                    const panel = document.getElementById('textInputPanel');
+                    if (panel && !panel.classList.contains('open')) panel.classList.add('open');
                 };
                 const reader = new FileReader();
                 reader.onload = (ev) => {
@@ -1483,27 +1344,6 @@ class RecorderApp {
                 e.target.value = '';
             });
         }
-        if (this.btnSubmitTextFile) {
-            this.btnSubmitTextFile.addEventListener('click', async () => {
-                if (!this.loadedTextFileContent.trim()) return;
-                const apiKey = this.getCurrentApiKey();
-                if (!apiKey) { alert('APIキーを入力してください。'); this.showView('settings'); return; }
-                this.btnSubmitTextFile.disabled = true;
-                this.btnSubmitTextFile.textContent = '⏳ 処理中...';
-                try {
-                    await this.processTextInput(this.loadedTextFileContent);
-                    this.loadedTextFileContent = '';
-                    if (this.textFilePreview) { this.textFilePreview.textContent = ''; this.textFilePreview.style.display = 'none'; }
-                    const row = document.getElementById('textFileSubmitRow');
-                    if (row) row.style.display = 'none';
-                    if (this.textFileInput) this.textFileInput.value = '';
-                    this.showView('log');
-                } finally {
-                    this.btnSubmitTextFile.disabled = false;
-                    this.btnSubmitTextFile.textContent = '🚀 このテキストを要約';
-                }
-            });
-        }
 
         // テキスト送信ボタン
         if (this.btnSubmitText) {
@@ -1511,70 +1351,37 @@ class RecorderApp {
                 const text = this.textInputArea?.value?.trim();
                 if (!text) { alert('テキストを入力してください。'); return; }
                 const apiKey = this.getCurrentApiKey();
-                if (!apiKey) { alert('APIキーを入力してください。'); this.showView('settings'); return; }
+                if (!apiKey) { alert('APIキーを入力してください。'); this.showSettingsView(); return; }
                 this.btnSubmitText.disabled = true;
                 this.btnSubmitText.textContent = '⏳ 処理中...';
                 try {
                     await this.processTextInput(text);
-                    this.showView('log');
-                } finally {
                     this.textInputArea.value = '';
+                } finally {
                     this.btnSubmitText.disabled = false;
                     this.btnSubmitText.textContent = '🚀 テキストを要約';
                 }
             });
         }
 
-        // テキスト貼り付けクリア
+        // テキストクリアボタン
         if (this.btnClearText) {
             this.btnClearText.addEventListener('click', () => {
                 if (this.textInputArea) this.textInputArea.value = '';
             });
         }
 
-        // 音声ファイルクリア
-        const btnClearAudio = document.getElementById('btnClearAudio');
-        if (btnClearAudio && this.audioFileInput) {
-            btnClearAudio.addEventListener('click', () => {
-                this.audioFileInput.value = '';
+        // テキスト入力パネルのトグル
+        const textInputToggle = document.getElementById('textInputToggle');
+        const textInputPanel = document.getElementById('textInputPanel');
+        if (textInputToggle && textInputPanel) {
+            textInputToggle.addEventListener('click', () => {
+                textInputPanel.classList.toggle('open');
+                textInputToggle.classList.toggle('active');
+                const arrow = textInputToggle.querySelector('span:last-child');
+                if (arrow) arrow.style.transform = textInputPanel.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
             });
         }
-
-        // テキストファイルクリア
-        const btnClearTextFile = document.getElementById('btnClearTextFile');
-        if (btnClearTextFile) {
-            btnClearTextFile.addEventListener('click', () => {
-                this.loadedTextFileContent = '';
-                if (this.textFilePreview) {
-                    this.textFilePreview.textContent = '';
-                    this.textFilePreview.style.display = 'none';
-                }
-                const row = document.getElementById('textFileSubmitRow');
-                if (row) row.style.display = 'none';
-                if (this.textFileInput) this.textFileInput.value = '';
-            });
-        }
-
-        // 下端タブ切り替え
-        document.querySelectorAll('.bottom-tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tab = btn.dataset.tab;
-                if (tab) this.showView(tab);
-            });
-        });
-
-        // 入力画面のサブタブ切り替え
-        document.querySelectorAll('.sub-tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const subtab = btn.dataset.subtab;
-                if (!subtab) return;
-                document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.sub-tab-panel').forEach(p => p.classList.remove('active'));
-                btn.classList.add('active');
-                const panel = document.getElementById('subpanel-' + subtab);
-                if (panel) panel.classList.add('active');
-            });
-        });
 
         // Update Model Display
         this.updateModelDisplay();
@@ -1605,22 +1412,27 @@ class RecorderApp {
             });
         }
 
+        // ビュー切り替え（録音画面 ⇔ 設定画面）
+        if (this.btnOpenSettings) {
+            this.btnOpenSettings.addEventListener('click', () => this.showSettingsView());
+        }
+        if (this.btnBackToMain) {
+            this.btnBackToMain.addEventListener('click', () => this.showMainView());
+        }
     }
 
-    showView(tabName) {
-        const views = ['main', 'settings', 'input', 'log'];
-        const viewIds = { main: 'main-view', settings: 'settings-view', input: 'input-view', log: 'log-view' };
-        views.forEach(name => {
-            const el = document.getElementById(viewIds[name]);
-            if (el) el.classList.toggle('active', name === tabName);
-        });
-        document.querySelectorAll('.bottom-tab-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.tab === tabName);
-        });
+    showMainView() {
+        const mainView = document.getElementById('main-view');
+        const settingsView = document.getElementById('settings-view');
+        if (mainView) mainView.classList.add('active');
+        if (settingsView) settingsView.classList.remove('active');
     }
 
     showSettingsView() {
-        this.showView('settings');
+        const mainView = document.getElementById('main-view');
+        const settingsView = document.getElementById('settings-view');
+        if (mainView) mainView.classList.remove('active');
+        if (settingsView) settingsView.classList.add('active');
     }
 
     /**
@@ -1664,7 +1476,7 @@ class RecorderApp {
         const apiKey = this.getCurrentApiKey();
         if (!apiKey) {
             alert('APIキーを入力してください。設定画面でAPIキーを登録してください。');
-            this.showView('settings');
+            this.showSettingsView();
             event.target.value = '';
             return;
         }
@@ -1693,7 +1505,6 @@ class RecorderApp {
         this.segmentCounter++;
         if (this.segmentCounterDisplay) this.segmentCounterDisplay.textContent = this.segmentCounter;
         event.target.value = '';
-        this.showView('log');
     }
 
     /**
@@ -1704,7 +1515,7 @@ class RecorderApp {
         const apiKey = this.getCurrentApiKey();
         if (!apiKey) {
             alert('APIキーを入力してください。設定画面でAPIキーを登録してください。');
-            this.showView('settings');
+            this.showSettingsView();
             return;
         }
 
@@ -2132,7 +1943,9 @@ class RecorderApp {
      */
     getPromptTemplate() {
         const selectedMode = document.querySelector('input[name="recordingMode"]:checked')?.value || 'meeting';
-        
+        const isPro = this.MODEL_NAME === 'gemini-2.5-pro';
+        const modeKey = isPro && selectedMode ? `${selectedMode}Pro` : null;
+
         const prompts = {
             secure: `
 あなたは優秀な会議の書記官です。提供された音声データを分析し、以下のフォーマットに厳格に従って日本語で議事録を作成してください。
@@ -2164,7 +1977,6 @@ class RecorderApp {
 - 生年月日、年齢（「30代」「40代」などに置換）
 - 会社名、組織名（「A社」「B組織」などに置換）
 - その他、個人を特定できる情報
-- **匿名化を徹底し、実名や特定可能な情報は一切残さないこと。**
 
 # 議事録の記載ルール
 - 各トピック・発言について、最低1〜2文以上で内容を記載すること。
@@ -2224,7 +2036,6 @@ class RecorderApp {
 - 勤務先、学校名、組織名（「○○会社」「○○大学」などに置換）
 - その他個人を特定できる情報（ID番号、免許証番号など）
 - 個人情報が含まれる場合は、該当箇所を「[個人情報削除]」と記載すること
-- **匿名化を徹底し、実名や特定可能な情報は一切残さないこと。**
 
 # 議事録の記載ルール
 - 各トピック・発言について、最低1〜2文以上で内容を記載すること。
@@ -2280,7 +2091,7 @@ class RecorderApp {
 
 # 役割と重要事項
 - **目的**: 説明内容の記録および、患者・家族の「理解度」と「同意」の有無を明確にすること。
-- **用語**: 専門用語は正確に漢字・英語で記載すること（例: 心不全→HF、肺炎→Pneumonia）。
+- **用語**: 専門用語は正確な漢字で記載し、略語や英語表記が必要な場合のみ付記すること。
 - **除外**: 「あー」「えー」などのフィラー、無関係な世間話。
 - **推論**: 誰がキーパーソン（決定権者）かを文脈から推測し、その発言を重視すること。
 
@@ -2290,96 +2101,228 @@ class RecorderApp {
 - 音声が雑音で判別できない場合は、その旨を記載すること。
 - 曖昧な聞き取りを「らしい」「かもしれない」で補完しないこと。
 
-# 個人情報保護（必須・最重要・徹底）
+# 個人情報保護（必須・最重要）
 以下の個人情報は必ず削除または匿名化してください：
-- 患者・家族の氏名（「本人」「長男」「妻」などに置換）
-- 具体的な地名、病院名、日付（「当院」「X日」などに置換）
-- **匿名化を徹底し、実名や特定可能な情報は一切残さないこと。**
+・患者・家族の氏名（「本人」「長男」「妻」などに置換）
+・具体的な地名、病院名、日付（「当院」「X日」などに置換）
+
+# 出力形式の厳格ルール（必須）
+以下の記法は一切使用しないこと。AI生成と分かる見た目にしないこと。
+・禁止: # ## ### などの見出し記号、** *** による太字、--- の罫線
+・使用すること:
+  - テーマ・見出しは ＜参加者＞ ＜説明内容＞ のように ＜＞ で囲む
+  - 強調や項目名は「」で囲む（例:「説明者」「現在の病状・診断」）
+  - 箇条書きは ・ のみを使う（ハイフン - は使わない）
+  - 改行と ・ で区切り、プレーンテキストに近い体裁にする
+・電子カルテに貼り付けても、人が書いた記録のように自然な表記にすること。
+
+# 出力フォーマット（上記記法で出力すること）
+
+＜参加者＞
+・「説明者」: [医師名/職種]、[同席看護師など]
+・「対象者」: [本人]、[キーパーソン（続柄）]、[その他同席者]
+
+＜説明内容＞
+医師が説明した以下の項目を簡潔にまとめる。
+・「現在の病状・診断」: [診断名と現状]
+・「提案された治療・方針」: [治療内容]
+・「メリット・期待される効果」: [内容]
+・「デメリット・リスク・合併症」: [具体的なリスク]
+・「代替案の提示」: [あれば記載、なければ「なし」]
+
+＜質疑応答と反応＞（ここが最も重要）
+家族からの質問と回答、および家族の感情的な反応を記載する。
+・「質問」: [家族の質問内容]
+・「回答」: [医師の回答]
+・「家族の反応」: [「理解した様子」「強い不安を示した」「持ち帰って検討したい」など]
+
+＜結論＞
+・方針に同意（署名取得/口頭同意）
+・持ち帰って検討
+・セカンドオピニオン希望
+・その他: [詳細]
+
+＜補足・特記事項＞
+（録音状況が悪かった場合や、特に記録しておくべきトラブルの予兆など）
+
+＜不明瞭・聞き取れなかった箇所＞
+・[該当する場合は時系列で記載。該当なしの場合は「該当なし」と記載]
+
+(音声が途中から始まっている場合は文脈を補完して記録すること)
+`,
+            // --- Pro用：より詳細な分析・整理を求めるプロンプト ---
+            meetingPro: `
+あなたは高精度分析を担当する優秀な会議の書記官です。提供された音声データを**詳細に分析**し、議論の背景・論拠・論点の整理まで含めて、以下のフォーマットに厳格に従って日本語で議事録を作成してください。
+
+# 重要：Proモードでの記録の原則
+- 「要約」ではなく「記録」を目的としつつ、**議論の背景・前提・決定に至る論拠**も抽出すること。
+- 各トピックについて、何が論点だったか・なぜその結論になったかを2〜4文程度で記載すること。
+- 対立意見や保留になった理由も簡潔に記載すること。
+- 聞き取れた発言は省略せず網羅的に記載し、重要な発言は要点を複数行で記載すること。
+
+# 役割と制約
+- 「えー」「あー」などのフィラーや、無関係な雑談は除外すること。
+- 話者が複数いる場合は、文脈から推測して発言の意図を汲み取ること。
+- 専門用語や固有名詞は可能な限り正確に記述すること。
+- マークダウン形式で見やすく整形すること。
+
+# 聞き取りの厳格ルール（必須）
+- 聞き取れなかった・不明瞭な部分は「[聞き取れず]」と明記し、推測や創作で補完しないこと。
+- 確信が持てない発言は「[要確認]」と記載し、憶測で記載しないこと。
+- 音声が雑音で判別できない場合は、その旨を記載すること。
+
+# 個人情報保護（必須）
+以下の個人情報は必ず削除または匿名化してください：
+- 氏名、フルネーム、イニシャル、ニックネーム（「Aさん」「B氏」などに置換）
+- 住所、郵便番号、具体的な地名、電話番号、メールアドレス、SNSアカウント
+- 生年月日、年齢（必要に応じて年代のみ）、勤務先、学校名、組織名
+- その他個人を特定できる情報。該当箇所は「[個人情報削除]」と記載すること。
+
+# 医療・カンファレンス時の出力
+音声が医療・診療・症例検討に関連する場合は、症例の概要・検討経過・決定事項・今後の方針を発話から抽出し、診断名・略語・検査値は正確に記載すること。専門用語は正確な漢字で記載し、略語や英語表記が必要な場合のみ付記すること。
 
 # 出力フォーマット
 
-## 1. 👥 参加者 (Participants)
-- **説明者**: [医師名/職種]、[同席看護師など]
-- **対象者**: [本人]、[キーパーソン（続柄）]、[その他同席者]
+## 1. 🎯 概要 (Executive Summary)
+会議の目的と、決定された結論を記載。**決定に至った主な理由や背景**を1〜2文で補足すること。（5〜8行程度）
 
-## 2. 📋 説明内容 (Explanation Summary)
-医師が説明した以下の項目を簡潔にまとめてください。
-- **現在の病状・診断**: [診断名と現状]
-- **提案された治療・方針**: [治療内容]
-- **メリット・期待される効果**: [内容]
-- **デメリット・リスク・合併症**: [具体的なリスク]
-- **代替案の提示**: [あれば記載、なければ「なし」]
+## 2. 🧠 主要トピック (Mind Map Style)
+議論内容を論理的な階層で整理。**各トピックの論点・背景・議論のポイント・結論の理由**を2〜4文で記載すること。
+- トピックA
+  - 詳細事実・論点
+  - 議論のポイント（誰が何を主張したか）
+  - 結論とその理由
+- トピックB（同様に詳細に）
 
-## 3. 🗣️ 質疑応答と反応 (Q&A & Reaction)
-ここが最も重要です。家族からの質問と、それに対する回答、および家族の感情的な反応（納得、不安、拒絶など）を記載してください。
-- **質問**: [家族の質問内容]
-  - **回答**: [医師の回答]
-- **家族の反応**: [「理解した様子」「強い不安を示した」「持ち帰って検討したい」など]
+## 3. 📝 議事録（時系列）
+- 発言者を区別し、各発言の要点を2〜3文以上で記載。
+- 議論の対立・合意・保留と、**保留になった理由**も記載すること。
 
-## 4. ✅ 結論 (Conclusion)
-- [ ] 方針に同意（署名取得/口頭同意）
-- [ ] 持ち帰って検討
-- [ ] セカンドオピニオン希望
-- [ ] その他: [詳細]
+## 4. ✅ 決定事項 (Decisions)
+- [決定] 確定した事項と、**主な論拠や条件**
+- [保留] 保留となった事項と**その理由**
 
-## 5. 📝 補足・特記事項
-（録音状況が悪かった場合や、特に記録しておくべきトラブルの予兆など）
+## 5. 🚀 ネクストアクション (To-Do)
+誰が、いつまでに、何をやるか。不明な場合は「担当者未定」としてタスクのみ記載。
 
 ## 6. ⚠️ 不明瞭・聞き取れなかった箇所
 - [該当する場合は時系列で記載。該当なしの場合は「該当なし」と記載]
 
 ---
-(以下、音声が途中から始まっている場合は文脈を補完して記録してください)
+(音声が途中から始まっている場合は文脈を補完して記録してください)
 `,
-            lecture: `
-あなたは講義・レクチャーの要約の専門家です。提供された音声（またはテキスト）を分析し、聴講者が後から振り返りやすい要約を作成してください。
+            medicalPro: `
+あなたは高精度分析を担当する熟練した医療クラークです。医師による患者・家族への病状説明（インフォームド・コンセント）の録音データを**詳細に分析**し、説明の論点・理解度・同意のニュアンスまで明確にした、電子カルテに転記できる形式で要約を作成してください。
 
-# 個人情報保護（必須・徹底・最優先）
-**匿名化を徹底すること。実名・実在の個人を特定できる情報は一切出力しないこと。**
-以下の個人情報は必ず削除または匿名化してください：
-- **氏名**: フルネーム、イニシャル、ニックネーム、あだ名（「講師」「発表者A」「B氏」などに置換）
-- **講義内で言及された実在の人物**: 研究者名・患者名・症例の関係者・著名人の名前なども「[研究者]」「[症例の当事者]」「[関係者]」などに置換すること
-- **住所・所在地**: 郵便番号、具体的な地名、施設名（「○○県」「○○施設」などに置換）
-- **連絡先**: 電話番号、メールアドレス、SNSアカウント、URL（個人が特定できるもの）
-- **年齢・生年月日**: 具体的な年齢・生年は「年代」のみ、または「[個人情報削除]」と記載
-- **所属**: 会社名、学校名、病院名、組織名（「○○大学」「A社」などに置換）
-- **その他**: 患者ID、カルテ番号、免許証番号、その他個人を特定できる一切の情報
-- 個人情報が含まれる場合は該当箇所を「[個人情報削除]」と記載し、推測で補完しないこと。
-**匿名化されていない実名や特定可能な記載が1件でも残っていた場合は出力全体が失格とする、という意識で徹底すること。**
-
-# 役割と制約
-- 「えー」「あー」などのフィラーや、無関係な雑談は除外すること。
-- 専門用語・固有名詞（学術用語・疾患名等）は正確に記載し、必要に応じて補足を入れること。ただし人物名・施設名等の固有名詞は上記の匿名化ルールに従うこと。
-- マークダウン形式で見やすく整形すること。
-- 要約は過度に省略せず、論点・根拠・結論が分かる程度に記載すること。
+# 役割と重要事項（Proモード）
+- **目的**: 説明内容の記録に加え、患者・家族の「理解度」「同意の程度」「懸念や条件」をより明確にすること。
+- **用語**: 専門用語は正確な漢字で記載し、略語や英語表記が必要な場合のみ付記すること。
+- **除外**: 「あー」「えー」などのフィラー、無関係な世間話。
+- **推論**: キーパーソン（決定権者）を文脈から推測し、その発言・反応を特に詳しく記載すること。説明に対する理解の深さや不安の有無も抽出すること。
 
 # 聞き取りの厳格ルール（必須）
 - 聞き取れなかった・不明瞭な部分は「[聞き取れず]」と明記し、推測や創作で補完しないこと。
 - 確信が持てない発言は「[要確認]」と記載し、憶測で記載しないこと。
+- 音声が雑音で判別できない場合は、その旨を記載すること。
+
+# 個人情報保護（必須・最重要）
+患者・家族の氏名は「本人」「長男」「妻」などに置換。具体的な地名、病院名、日付は「当院」「X日」などに置換すること。
+
+# 出力形式の厳格ルール（必須）
+- 禁止: # ## ### 、** *** 、--- の罫線
+- 使用すること: ＜＞で見出し、「」で項目名、・ で箇条書き。電子カルテに貼っても自然なプレーンテキストにすること。
+
+# 出力フォーマット（上記記法で出力すること）
+
+＜参加者＞
+・「説明者」: [医師名/職種]、[同席看護師など]
+・「対象者」: [本人]、[キーパーソン（続柄）]、[その他同席者]
+
+＜説明内容＞
+医師が説明した項目を**論点ごとに整理**してまとめる。
+・「現在の病状・診断」: [診断名と現状]
+・「提案された治療・方針」: [治療内容]
+・「メリット・期待される効果」: [内容]
+・「デメリット・リスク・合併症」: [具体的なリスク]
+・「代替案の提示」: [あれば記載、なければ「なし」]
+・「説明の流れや強調された点」: [医師が特に強調した説明があれば1〜2文で記載]
+
+＜質疑応答と反応＞（最も重要・詳細に）
+・「質問」: [家族の質問内容]
+・「回答」: [医師の回答]
+・「家族の反応」: [「理解した様子」「強い不安を示した」「持ち帰って検討したい」など、**反応の程度やニュアンス**を記載]
+・「理解度・懸念」: [説明をどこまで理解していると推測されるか、残っている懸念があれば簡潔に]
+
+＜結論＞
+・方針に同意（署名取得/口頭同意）
+・持ち帰って検討
+・セカンドオピニオン希望
+・その他: [詳細]
+・**条件や但し書き**（「〇〇が分かり次第決めたい」等があれば記載）
+
+＜補足・特記事項＞
+（録音状況、記録しておくべきトラブルの予兆、家族の態度で特記すべき点など）
+
+＜不明瞭・聞き取れなかった箇所＞
+・[該当する場合は時系列で記載。該当なしの場合は「該当なし」と記載]
+
+(音声が途中から始まっている場合は文脈を補完して記録すること)
+`,
+            securePro: `
+あなたは高精度分析を担当する優秀な会議の書記官です。秘匿性の高い会議の音声データを**詳細に分析**し、議論の背景・論拠・論点の整理まで含めて、以下のフォーマットに厳格に従って日本語で議事録を作成してください。
+
+# 重要：Proモード・秘匿会議の記録の原則
+- 「要約」ではなく「記録」を目的としつつ、**議論の背景・前提・決定に至る論拠**も抽出すること。
+- 各トピックについて、何が論点だったか・なぜその結論になったかを2〜4文程度で記載すること。
+- 聞き取れた発言・議論は省略せず網羅的に記載し、重要な発言は要点を複数行で記載すること。
+- 機密情報の取り扱いに特に注意し、個人情報は必ず匿名化すること。
+
+# 役割と制約
+- 「えー」「あー」などのフィラーや、無関係な雑談は除外すること。
+- 話者が複数いる場合は、文脈から推測して発言の意図を汲み取ること。
+- 専門用語や固有名詞は可能な限り正確に記述すること。
+- マークダウン形式で見やすく整形すること。
+
+# 聞き取りの厳格ルール（必須）
+- 聞き取れなかった・不明瞭な部分は「[聞き取れず]」と明記し、推測や創作で補完しないこと。
+- 確信が持てない発言は「[要確認]」と記載し、憶測で記載しないこと。
+- 音声が雑音で判別できない場合は、その旨を記載すること。
+
+# 個人情報保護（必須・強化）
+以下の個人情報は必ず削除または匿名化してください：
+- 氏名、フルネーム、イニシャル、ニックネーム（「Aさん」「B氏」などに置換）
+- 住所、郵便番号、具体的な地名、電話番号、メールアドレス、SNSアカウント
+- 生年月日、年齢、会社名、組織名、その他個人を特定できる情報
+
+# 議事録の記載ルール
+- 各トピック・発言について、最低2〜3文以上で内容を記載すること。
+- 議論の流れ（誰が何を主張し、どう反応したか）に加え、**決定の理由・保留の理由**も記載すること。
+- 数字・日付・固有名詞は聞き取れた範囲で正確に記載すること。
 
 # 出力フォーマット
 
-## 1. 📌 要約（サマリー）
-講義の主題と、最も重要なポイントを3〜7行でまとめてください。
+## 会議概要
+- **日時**: [日時]
+- **参加者数**: [人数]
+- **主な議題**: [議題の要約。**背景や前提**を1〜2文で補足し、5〜8行程度で詳細に]
 
-## 2. 📋 主要トピック
-講義で扱われたトピックを箇条書きで整理し、各トピックの要点を2〜3文で記載してください。
+## 議事録
+- **発言者を区別**して記載（話者A、話者B など）
+- 各発言の**要点を2〜3文以上**で記載
+- 議論の対立・合意・保留と、**その理由**が分かるように時系列で記載
 
-## 3. 📝 詳細メモ（必要に応じて）
-重要な定義・数値・引用・手順など、後から参照したい内容を記載してください。
+## 決定事項
+[決定した事項を具体的に記載。**主な論拠や条件**があれば1文で補足すること]
 
-## 4. 🔑 キーワード・用語
-講義で重要なキーワードや用語を列挙してください。
+## 今後の検討事項
+[今後検討すべき事項を列挙。**優先度や前提**があれば簡潔に記載]
 
----
-(音声が途中から始まっている場合は文脈を補完して要約してください)
-
-# 必須：PubMed検索用キーワード（2語のみ・OR検索用）
-要約の最後に、**関連性が高く教育的意義の高い英語キーワードを2つだけ**、カンマ区切りで1行で出力してください。この2語はPubMedで「keyword1 OR keyword2」として検索されます。複数並べると検索が走りにくいため、厳選した2語のみにすること。形式は必ず次のとおり（この行は要約本文には表示されません）：
-KEYWORDS: keyword1, keyword2
+## ⚠️ 不明瞭・聞き取れなかった箇所
+- [該当する場合は時系列で記載。該当なしの場合は「該当なし」と記載]
 `
         };
         
+        if (modeKey && prompts[modeKey]) return prompts[modeKey];
         return prompts[selectedMode] || prompts.meeting;
     }
 
@@ -2754,7 +2697,8 @@ KEYWORDS: keyword1, keyword2
             .replace(/音声データ/g, 'テキストデータ')
             .replace(/音声が途中から/g, 'テキストが途中から')
             .replace(/音声が雑音で/g, 'テキストが不明瞭で')
-            .replace(/録音データを分析し/g, 'テキストデータを分析し');
+            .replace(/録音データを分析し/g, 'テキストデータを分析し')
+            .replace(/録音データ/g, 'テキストデータ');
         const payload = {
             contents: [{
                 parts: [
@@ -2816,13 +2760,11 @@ KEYWORDS: keyword1, keyword2
 
         try {
             const markdown = await this.executeTextApiCall(inputText);
-            const { displayMarkdown, keywords } = this.parseKeywordsFromMarkdown(markdown);
             contentDiv.classList.remove('loading');
-            contentDiv.innerHTML = this.simpleMarkdownParse(displayMarkdown);
-            contentDiv.dataset.rawMarkdown = displayMarkdown;
+            contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
+            contentDiv.dataset.rawMarkdown = markdown;
             const actionsDiv = document.querySelector(`#${logId} .log-actions`);
             if (actionsDiv) actionsDiv.style.display = 'flex';
-            this.attachPubMedLink(logId, keywords);
         } catch (err) {
             contentDiv.classList.remove('loading');
             contentDiv.classList.add('error');
@@ -2871,17 +2813,15 @@ KEYWORDS: keyword1, keyword2
             ]);
             if (apiResult.status === 'rejected') throw apiResult.reason;
             const markdown = apiResult.value;
-            const { displayMarkdown, keywords } = this.parseKeywordsFromMarkdown(markdown);
             contentDiv.classList.remove('loading');
-            contentDiv.innerHTML = this.simpleMarkdownParse(displayMarkdown);
-            contentDiv.dataset.rawMarkdown = displayMarkdown;
+            contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
+            contentDiv.dataset.rawMarkdown = markdown;
 
             // Show action buttons after content is loaded
             const actionsDiv = document.querySelector(`#${logId} .log-actions`);
             if (actionsDiv) {
                 actionsDiv.style.display = 'flex';
             }
-            this.attachPubMedLink(logId, keywords);
 
             // 要約成功: IndexedDBから音声データを削除
             await this.deleteAudioFromIndexedDB(logId);
@@ -2930,14 +2870,12 @@ KEYWORDS: keyword1, keyword2
 
         try {
             const markdown = await this.executeAudioApiCall(stored.blob, stored.mimeType);
-            const { displayMarkdown, keywords } = this.parseKeywordsFromMarkdown(markdown);
             contentDiv.classList.remove('loading');
-            contentDiv.innerHTML = this.simpleMarkdownParse(displayMarkdown);
-            contentDiv.dataset.rawMarkdown = displayMarkdown;
+            contentDiv.innerHTML = this.simpleMarkdownParse(markdown);
+            contentDiv.dataset.rawMarkdown = markdown;
 
             const actionsDiv = document.querySelector(`#${logId} .log-actions`);
             if (actionsDiv) actionsDiv.style.display = 'flex';
-            this.attachPubMedLink(logId, keywords);
             await this.deleteAudioFromIndexedDB(logId);
         } catch (e) {
             contentDiv.classList.remove('loading');
@@ -3021,55 +2959,6 @@ KEYWORDS: keyword1, keyword2
             .replace(/^## (.*$)/gim, '<strong>$1</strong>')
             .replace(/^\* (.*$)/gim, '• $1')
             .replace(/\n/g, '<br>');
-    }
-
-    /**
-     * KEYWORDS: 行をパースし、表示用マークダウンとキーワード配列を返す
-     * @returns {{ displayMarkdown: string, keywords: string[] }}
-     */
-    parseKeywordsFromMarkdown(markdown) {
-        const m = markdown.match(/KEYWORDS:\s*(.+?)(?:\n|$)/is);
-        const keywords = m
-            ? m[1].split(',').map(k => k.trim()).filter(Boolean)
-            : [];
-        let displayMarkdown = markdown;
-        if (keywords.length > 0) {
-            // 必須：PubMed... から KEYWORDS: 行までを削除
-            displayMarkdown = markdown.replace(/\n*#?\s*必須：?.*PubMed[\s\S]*?KEYWORDS:.*$/im, '').trim();
-            // KEYWORDS: のみの行も削除（上記にマッチしなかった場合）
-            displayMarkdown = displayMarkdown.replace(/\n*\s*KEYWORDS:.*$/im, '').trim();
-        }
-        return { displayMarkdown, keywords };
-    }
-
-    /**
-     * キーワード配列から PubMed 検索URLを生成（最大2語を OR で結合）
-     */
-    buildPubMedUrl(keywords) {
-        if (!keywords || keywords.length === 0) return '';
-        const two = keywords.slice(0, 2).map(k => encodeURIComponent(k.trim())).filter(Boolean);
-        if (two.length === 0) return '';
-        const q = two.length === 2 ? `${two[0]}+OR+${two[1]}` : two[0];
-        return `https://pubmed.ncbi.nlm.nih.gov/?term=${q}`;
-    }
-
-    /**
-     * ログエントリに「参考文献」リンクを追加（キーワードがある場合のみ）
-     */
-    attachPubMedLink(logId, keywords) {
-        if (!keywords || keywords.length === 0) return;
-        const actionsDiv = document.querySelector(`#${logId} .log-actions`);
-        if (!actionsDiv) return;
-        if (actionsDiv.querySelector('.log-action-pubmed')) return; // 既にある場合はスキップ
-        const url = this.buildPubMedUrl(keywords);
-        const a = document.createElement('a');
-        a.href = url;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        a.className = 'log-action-btn log-action-pubmed';
-        a.textContent = '📚 参考文献';
-        a.title = '以下のキーワードでPubMedを検索（新しいタブで開きます）';
-        actionsDiv.appendChild(a);
     }
 
     /**
@@ -3164,67 +3053,49 @@ KEYWORDS: keyword1, keyword2
     }
 
     /**
-     * 全ログを取得（セグメント・テキスト入力の両方に対応）
-     */
-    getLogsData() {
-        const logEntries = document.querySelectorAll('.log-entry');
-        const allLogs = [];
-        logEntries.forEach(entry => {
-            const header = entry.querySelector('.log-header');
-            const contentDiv = entry.querySelector('.log-content');
-            if (!contentDiv || !header || contentDiv.classList.contains('loading')) return;
-            const segmentMatch = header.textContent.match(/(?:セグメント|テキスト入力) #(\d+)/);
-            const timeMatch = header.textContent.match(/(\d{1,2}:\d{2}:\d{2})/);
-            if (segmentMatch && timeMatch) {
-                const rawMarkdown = contentDiv.dataset.rawMarkdown || contentDiv.textContent;
-                allLogs.push({
-                    segmentId: parseInt(segmentMatch[1]),
-                    timestamp: timeMatch[1],
-                    content: rawMarkdown
-                });
-            }
-        });
-        allLogs.sort((a, b) => a.segmentId - b.segmentId);
-        return allLogs;
-    }
-
-    /**
-     * 全ログをクリップボードにコピー
-     */
-    async copyAllLogs() {
-        const allLogs = this.getLogsData();
-        if (allLogs.length === 0) {
-            alert('コピーする要約がありません。');
-            return;
-        }
-        const text = allLogs.map(({ segmentId, timestamp, content }) => `--- #${segmentId} ${timestamp} ---\n${content}`).join('\n\n');
-        try {
-            await navigator.clipboard.writeText(text);
-            alert('要約をコピーしました。');
-        } catch (err) {
-            console.error('Copy failed:', err);
-            alert('コピーに失敗しました。');
-        }
-    }
-
-    /**
-     * 全ログをファイルに出力（ダウンロード）
+     * Export all logs as a single file
      */
     exportAllLogs() {
         try {
-            const allLogs = this.getLogsData();
-            if (allLogs.length === 0) {
-                alert('出力する要約がありません。');
+            const logEntries = document.querySelectorAll('.log-entry');
+            if (logEntries.length === 0) {
+                alert('エクスポートするログがありません。');
                 return;
             }
+
+            const allLogs = [];
             const selectedMode = document.querySelector('input[name="recordingMode"]:checked')?.value || 'meeting';
+            
+            logEntries.forEach(entry => {
+                const header = entry.querySelector('.log-header');
+                const contentDiv = entry.querySelector('.log-content');
+                
+                if (!contentDiv || !header || contentDiv.classList.contains('loading')) return;
+                
+                const segmentMatch = header.textContent.match(/セグメント #(\d+)/);
+                const timeMatch = header.textContent.match(/(\d{1,2}:\d{2}:\d{2})/);
+                
+                if (segmentMatch && timeMatch) {
+                    const rawMarkdown = contentDiv.dataset.rawMarkdown || contentDiv.textContent;
+                    allLogs.push({
+                        segmentId: parseInt(segmentMatch[1]),
+                        timestamp: timeMatch[1],
+                        content: rawMarkdown
+                    });
+                }
+            });
+
+            // Sort by segmentId
+            allLogs.sort((a, b) => a.segmentId - b.segmentId);
+
             const exportData = {
                 exportDate: new Date().toISOString(),
                 mode: selectedMode,
                 totalSegments: allLogs.length,
                 logs: allLogs
             };
-            const filename = `要約_全${allLogs.length}件_${new Date().toISOString().split('T')[0]}.json`;
+
+            const filename = `要約ログ_全${allLogs.length}件_${new Date().toISOString().split('T')[0]}.json`;
             const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -3236,57 +3107,7 @@ KEYWORDS: keyword1, keyword2
             URL.revokeObjectURL(url);
         } catch (err) {
             console.error('Failed to export:', err);
-            alert('出力に失敗しました。');
-        }
-    }
-
-    /**
-     * 要約ログを印刷
-     */
-    printLogs() {
-        if (this.getLogsData().length === 0) {
-            alert('印刷する要約がありません。');
-            return;
-        }
-        this.showView('log');
-        setTimeout(() => window.print(), 150);
-    }
-
-    /**
-     * 要約を共有（AirDrop・メール等）
-     */
-    async shareLogs() {
-        const allLogs = this.getLogsData();
-        if (allLogs.length === 0) {
-            alert('共有する要約がありません。');
-            return;
-        }
-        const text = allLogs.map(({ segmentId, timestamp, content }) => `--- #${segmentId} ${timestamp} ---\n${content}`).join('\n\n');
-        const filename = `要約_全${allLogs.length}件_${new Date().toISOString().split('T')[0]}.txt`;
-        try {
-            if (navigator.share) {
-                const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-                const file = new File([blob], filename, { type: 'text/plain;charset=utf-8' });
-                await navigator.share({
-                    title: filename,
-                    files: [file]
-                });
-            } else {
-                const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                alert('共有APIが使えないため、ファイルをダウンロードしました。');
-            }
-        } catch (err) {
-            if (err.name === 'AbortError') return;
-            console.error('Share failed:', err);
-            alert('共有に失敗しました。');
+            alert('エクスポートに失敗しました。');
         }
     }
 }
