@@ -2077,6 +2077,7 @@ class RecorderApp {
         
         this.updateModelDisplay();
         this.updateRateLimitDisplay();
+        this.startRateLimitCountdown();
         
         localStorage.setItem('last_used_api_key_id', id);
     }
@@ -2089,9 +2090,28 @@ class RecorderApp {
         return this.apiKeyInput?.value?.trim() ?? '';
     }
 
+    /** 現在選択中のAPIキーオブジェクト（name, model 等）を返す */
+    getCurrentApiKeyObject() {
+        if (this.currentApiKeyId) {
+            return this.apiKeys.find(k => k.id === this.currentApiKeyId) || null;
+        }
+        return null;
+    }
+
+    /** 有料API利用時は true。このとき無料枠の RPM/RPD 制限は適用しない */
+    isPaidApi() {
+        const apiKey = this.getCurrentApiKeyObject();
+        const name = (apiKey?.name || '').toLowerCase();
+        if (name.includes('有料') || name.includes('paid') || name.includes('pro')) return true;
+        if (this.MODEL_NAME === 'gemini-2.5-pro') return true;
+        return false;
+    }
+
     updateModel(modelName) {
         this.MODEL_NAME = modelName;
         this.updateModelDisplay();
+        this.updateRateLimitDisplay();
+        this.startRateLimitCountdown();
         if (this.currentApiKeyId) {
             const apiKey = this.apiKeys.find(k => k.id === this.currentApiKeyId);
             if (apiKey) {
@@ -2382,9 +2402,10 @@ KEYWORDS: keyword1, keyword2
     }
 
     /**
-     * Check if rate limit is exceeded
+     * Check if rate limit is exceeded（有料APIの場合は制限なし）
      */
     checkRateLimit() {
+        if (this.isPaidApi()) return true;
         const now = Date.now();
         
         // Check RPM
@@ -2419,9 +2440,10 @@ KEYWORDS: keyword1, keyword2
     }
 
     /**
-     * Increment rate limit counters
+     * Increment rate limit counters（有料APIの場合はカウントしない）
      */
     incrementRateLimit() {
+        if (this.isPaidApi()) return;
         this.rpmCount++;
         this.rpdCount++;
         this.saveRateLimitCounts();
@@ -2493,6 +2515,15 @@ KEYWORDS: keyword1, keyword2
      */
     updateRateLimitDisplay() {
         if (!this.rateLimitPanel) return;
+        if (this.isPaidApi()) {
+            if (this.rpmCountDisplay) this.rpmCountDisplay.textContent = '制限なし';
+            if (this.rpdCountDisplay) this.rpdCountDisplay.textContent = '制限なし';
+            if (this.rpmProgressBar) this.rpmProgressBar.style.width = '0%';
+            if (this.rpdProgressBar) this.rpdProgressBar.style.width = '0%';
+            this.rateLimitPanel.className = 'rate-limit-panel';
+            this.rateLimitPanel.style.display = 'block';
+            return;
+        }
 
         // Update counts
         this.rpmCountDisplay.textContent = `${this.rpmCount}/${this.RPM_LIMIT}`;
@@ -2539,11 +2570,17 @@ KEYWORDS: keyword1, keyword2
     }
 
     /**
-     * Start rate limit countdown timer
+     * Start rate limit countdown timer（有料APIの場合はタイマー不要）
      */
     startRateLimitCountdown() {
         if (this.rateLimitInterval) {
             clearInterval(this.rateLimitInterval);
+            this.rateLimitInterval = null;
+        }
+        if (this.isPaidApi()) {
+            if (this.rpmCountdownTime) this.rpmCountdownTime.textContent = '—';
+            if (this.rpdCountdownTime) this.rpdCountdownTime.textContent = '—';
+            return;
         }
 
         this.rateLimitInterval = setInterval(() => {
