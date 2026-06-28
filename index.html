@@ -1104,7 +1104,10 @@
             <option value="gemini-2.5-pro">Gemini 2.5 Pro（有料・高精度）</option>
             <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（軽量）</option>
         </select>
-        <small>※秘匿性の高い会議モードでは自動的にGemini 2.5 Proが選択されます</small>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+            <small id="modelFetchStatus" style="flex: 1;">※秘匿性の高い会議モードでは自動的にProモデルが選択されます</small>
+            <button type="button" id="btnFetchModels" style="padding: 4px 10px; font-size: 0.75rem; background: var(--input-bg); color: var(--primary-color); border: 1px solid var(--primary-color); border-radius: 6px; cursor: pointer; white-space: nowrap; flex: none;">🔄 最新取得</button>
+        </div>
     </div>
 
     <div class="input-group">
@@ -1589,6 +1592,12 @@ class RecorderApp {
                     arrow.style.transform = this.settingsPanel.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
                 }
             });
+        }
+
+        // 最新モデル取得ボタン
+        const btnFetchModels = document.getElementById('btnFetchModels');
+        if (btnFetchModels) {
+            btnFetchModels.addEventListener('click', () => this.fetchAvailableModels());
         }
 
         // API Key Management Panel Toggle
@@ -2078,8 +2087,11 @@ class RecorderApp {
         this.updateModelDisplay();
         this.updateRateLimitDisplay();
         this.startRateLimitCountdown();
-        
+
         localStorage.setItem('last_used_api_key_id', id);
+
+        // APIキー選択時に利用可能なモデルを自動取得
+        this.fetchAvailableModels();
     }
 
     getCurrentApiKey() {
@@ -2118,6 +2130,76 @@ class RecorderApp {
                 apiKey.model = modelName;
                 this.saveApiKeys();
             }
+        }
+    }
+
+    /**
+     * Gemini APIから利用可能なモデル一覧を取得してドロップダウンを更新
+     */
+    async fetchAvailableModels() {
+        const apiKey = this.getCurrentApiKey();
+        const statusEl = document.getElementById('modelFetchStatus');
+        if (!apiKey) {
+            if (statusEl) statusEl.textContent = '※APIキーを設定するとモデル一覧を自動取得します';
+            return;
+        }
+        if (statusEl) statusEl.textContent = '⏳ モデル一覧を取得中...';
+        try {
+            const res = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=50`
+            );
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+
+            const models = (data.models || [])
+                .filter(m =>
+                    m.name &&
+                    m.name.includes('gemini') &&
+                    (m.supportedGenerationMethods || []).includes('generateContent') &&
+                    !m.name.includes('embedding') &&
+                    !m.name.includes('aqa') &&
+                    !m.name.includes('imagen')
+                )
+                .map(m => ({
+                    id: m.name.replace('models/', ''),
+                    displayName: m.displayName || m.name.replace('models/', '')
+                }))
+                .sort((a, b) => {
+                    // pro > flash > flash-lite、バージョン番号降順
+                    const tier = id => id.includes('pro') ? 3 : id.includes('flash-lite') || id.includes('flash_lite') ? 1 : id.includes('flash') ? 2 : 0;
+                    const td = tier(b.id) - tier(a.id);
+                    if (td !== 0) return td;
+                    return b.id.localeCompare(a.id);
+                });
+
+            if (models.length === 0) throw new Error('利用可能なモデルが見つかりません');
+
+            this.updateModelSelectOptions(models);
+            if (statusEl) statusEl.textContent = `✅ ${models.length}件のモデルを取得（${new Date().toLocaleTimeString()}）`;
+        } catch (e) {
+            console.warn('[fetchAvailableModels]', e);
+            if (statusEl) statusEl.textContent = `⚠️ モデル取得失敗: ${e.message}`;
+        }
+    }
+
+    updateModelSelectOptions(models) {
+        if (!this.modelSelect) return;
+        const currentValue = this.MODEL_NAME;
+        this.modelSelect.innerHTML = '';
+        models.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.displayName;
+            this.modelSelect.appendChild(opt);
+        });
+        // 現在のモデルが存在すれば維持、なければflash系を優先選択
+        if (models.find(m => m.id === currentValue)) {
+            this.modelSelect.value = currentValue;
+        } else {
+            const flash = models.find(m => m.id.includes('flash') && !m.id.includes('lite'));
+            const fallback = flash || models[0];
+            this.modelSelect.value = fallback.id;
+            this.updateModel(fallback.id);
         }
     }
 
