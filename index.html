@@ -1104,8 +1104,8 @@
             <option value="gemini-2.5-pro">Gemini 2.5 Pro（有料・高精度）</option>
             <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（軽量）</option>
         </select>
-        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
-            <small id="modelFetchStatus" style="flex: 1;">※秘匿性の高い会議モードでは自動的にProモデルが選択されます</small>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; width: 100%; box-sizing: border-box;">
+            <small id="modelFetchStatus" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">※秘匿性の高い会議モードでは自動的にProモデルが選択されます</small>
             <button type="button" id="btnFetchModels" style="padding: 4px 10px; font-size: 0.75rem; background: var(--input-bg); color: var(--primary-color); border: 1px solid var(--primary-color); border-radius: 6px; cursor: pointer; white-space: nowrap; flex: none;">🔄 最新取得</button>
         </div>
     </div>
