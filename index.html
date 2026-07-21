@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Gemini Auto-Split Recorder ver.1.1.2 (2026-07-21)</title>
+    <title>Gemini Auto-Split Recorder ver.1.2.0 (2026-07-22)</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23007bff' width='100' height='100' rx='20'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='central'>🎙️</text></svg>">
     <meta name="theme-color" content="#007bff">
@@ -2154,9 +2154,9 @@ class RecorderApp {
             ? '※Vertex Express用の、Agent Platform APIに制限されたAPIキーを使用します。'
             : '※Gemini Developer API（generativelanguage.googleapis.com）用のAPIキーを使用します。';
         if (fetchButton) {
-            fetchButton.textContent = isVertex ? '🔎 利用確認' : '🔄 最新取得';
+            fetchButton.textContent = '🔄 最新取得';
             fetchButton.title = isVertex
-                ? 'Vertex Expressで実際に利用できるモデルを確認します'
+                ? 'Vertex Model Gardenからモデルを取得し、Expressでの利用可否を確認します'
                 : 'Gemini Developer APIから最新モデル一覧を取得します';
         }
     }
@@ -2206,12 +2206,52 @@ class RecorderApp {
      */
     getVertexExpressModelOptions() {
         return [
+            { id: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash' },
             { id: 'gemini-3.1-pro-preview', displayName: 'Gemini 3.1 Pro Preview' },
+            { id: 'gemini-3.1-flash-lite', displayName: 'Gemini 3.1 Flash Lite' },
             { id: 'gemini-3-flash-preview', displayName: 'Gemini 3 Flash Preview' },
             { id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro' },
             { id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash' },
             { id: 'gemini-2.5-flash-lite', displayName: 'Gemini 2.5 Flash Lite' }
         ];
+    }
+
+    sortGeminiModels(models) {
+        const score = id => {
+            const version = id.match(/^gemini-(\d+)(?:\.(\d+))?/);
+            const versionScore = version ? (parseInt(version[1]) * 100 + parseInt(version[2] || '0')) : 0;
+            const tierScore = id.includes('pro') ? 3 : id.includes('flash-lite') ? 1 : id.includes('flash') ? 2 : 0;
+            const stableScore = id.includes('preview') ? 0 : 1;
+            return versionScore * 100 + tierScore * 10 + stableScore;
+        };
+        return [...models].sort((a, b) => score(b.id) - score(a.id) || b.id.localeCompare(a.id));
+    }
+
+    async fetchVertexPublisherModels(apiKey) {
+        const url = `https://aiplatform.googleapis.com/v1beta1/publishers/google/models?pageSize=100&listAllVersions=false&key=${encodeURIComponent(apiKey)}`;
+        const response = await fetch(url);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.error?.message || `HTTP ${response.status}`);
+        }
+
+        const modelMap = new Map();
+        (data.publisherModels || []).forEach(model => {
+            const rawName = model.name || '';
+            const id = rawName.split('/').pop()?.split('@')[0] || '';
+            if (!id.startsWith('gemini-')) return;
+            if (/image|embedding|live|tts/i.test(id)) return;
+            modelMap.set(id, {
+                id,
+                displayName: model.displayName || id
+            });
+        });
+
+        // Model Gardenの反映に時間差がある場合に備え、公式の主要モデル候補も統合する。
+        this.getVertexExpressModelOptions().forEach(model => {
+            if (!modelMap.has(model.id)) modelMap.set(model.id, model);
+        });
+        return this.sortGeminiModels([...modelMap.values()]);
     }
 
     async verifyVertexExpressModels(apiKey, models) {
@@ -2253,21 +2293,30 @@ class RecorderApp {
             const vertexModels = this.getVertexExpressModelOptions();
             if (!verifyAvailability) {
                 this.updateModelSelectOptions(vertexModels);
-                if (statusEl) statusEl.textContent = 'Vertex候補を表示中。「利用確認」で使用可否を確認できます';
+                if (statusEl) statusEl.textContent = 'Vertex主要モデルを表示中。「最新取得」でModel Gardenを確認できます';
                 return;
             }
             if (!apiKey) {
                 if (statusEl) statusEl.textContent = '※Vertex APIキーを設定してから利用確認してください';
                 return;
             }
-            if (statusEl) statusEl.textContent = '⏳ Vertexで利用可能なモデルを確認中...';
+            if (statusEl) statusEl.textContent = '⏳ Vertex Model Gardenからモデルを取得中...';
             try {
+                try {
+                    const publisherModels = await this.fetchVertexPublisherModels(apiKey);
+                    if (publisherModels.length === 0) throw new Error('Geminiモデルが見つかりません');
+                    this.updateModelSelectOptions(publisherModels);
+                    if (statusEl) statusEl.textContent = `✅ Model Gardenから${publisherModels.length}件取得`;
+                    return;
+                } catch (listError) {
+                    console.warn('[fetchVertexPublisherModels] fallback to verification', listError);
+                }
                 const { availableModels, unavailableCount } = await this.verifyVertexExpressModels(apiKey, vertexModels);
                 this.updateModelSelectOptions(availableModels);
                 if (statusEl) {
                     statusEl.textContent = unavailableCount > 0
-                        ? `✅ ${availableModels.length}件利用可能（${unavailableCount}件対象外）`
-                        : `✅ ${availableModels.length}件すべて利用可能`;
+                        ? `✅ 公式候補: ${availableModels.length}件利用可能（${unavailableCount}件対象外）`
+                        : `✅ 公式候補: ${availableModels.length}件すべて利用可能`;
                 }
             } catch (error) {
                 console.warn('[verifyVertexExpressModels]', error);
