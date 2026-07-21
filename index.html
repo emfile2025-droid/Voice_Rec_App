@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Gemini Auto-Split Recorder ver.1.1.1 (2026-07-21)</title>
+    <title>Gemini Auto-Split Recorder ver.1.1.2 (2026-07-21)</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23007bff' width='100' height='100' rx='20'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='central'>🎙️</text></svg>">
     <meta name="theme-color" content="#007bff">
@@ -2933,6 +2933,7 @@ KEYWORDS: keyword1, keyword2`
         const promptText = this.getPromptTemplate('audio');
         const payload = {
             contents: [{
+                role: 'user',
                 parts: [
                     { text: promptText },
                     { inlineData: { mimeType, data: base64Audio } }
@@ -2976,6 +2977,7 @@ KEYWORDS: keyword1, keyword2`
         const promptText = this.getPromptTemplate('text');
         const payload = {
             contents: [{
+                role: 'user',
                 parts: [
                     { text: promptText + '\n\n---\n以下が入力テキストです:\n\n' + inputText }
                 ]
