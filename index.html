@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Gemini Auto-Split Recorder ver.1.1.0 (2026-07-21)</title>
+    <title>Gemini Auto-Split Recorder ver.1.1.1 (2026-07-21)</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23007bff' width='100' height='100' rx='20'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='central'>🎙️</text></svg>">
     <meta name="theme-color" content="#007bff">
@@ -1604,7 +1604,7 @@ class RecorderApp {
         // 最新モデル取得ボタン
         const btnFetchModels = document.getElementById('btnFetchModels');
         if (btnFetchModels) {
-            btnFetchModels.addEventListener('click', () => this.fetchAvailableModels());
+            btnFetchModels.addEventListener('click', () => this.fetchAvailableModels(true));
         }
 
         // API Key Management Panel Toggle
@@ -2147,10 +2147,18 @@ class RecorderApp {
 
     updateApiProviderHelp() {
         const help = document.getElementById('apiProviderHelp');
+        const fetchButton = document.getElementById('btnFetchModels');
+        const isVertex = this.getCurrentApiProvider() === 'vertex-express';
         if (!help) return;
-        help.textContent = this.getCurrentApiProvider() === 'vertex-express'
+        help.textContent = isVertex
             ? '※Vertex Express用の、Agent Platform APIに制限されたAPIキーを使用します。'
             : '※Gemini Developer API（generativelanguage.googleapis.com）用のAPIキーを使用します。';
+        if (fetchButton) {
+            fetchButton.textContent = isVertex ? '🔎 利用確認' : '🔄 最新取得';
+            fetchButton.title = isVertex
+                ? 'Vertex Expressで実際に利用できるモデルを確認します'
+                : 'Gemini Developer APIから最新モデル一覧を取得します';
+        }
     }
 
     buildGenerateContentUrl(apiKey) {
@@ -2196,17 +2204,75 @@ class RecorderApp {
     /**
      * Gemini APIから利用可能なモデル一覧を取得してドロップダウンを更新
      */
-    async fetchAvailableModels() {
+    getVertexExpressModelOptions() {
+        return [
+            { id: 'gemini-3.1-pro-preview', displayName: 'Gemini 3.1 Pro Preview' },
+            { id: 'gemini-3-flash-preview', displayName: 'Gemini 3 Flash Preview' },
+            { id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro' },
+            { id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash' },
+            { id: 'gemini-2.5-flash-lite', displayName: 'Gemini 2.5 Flash Lite' }
+        ];
+    }
+
+    async verifyVertexExpressModels(apiKey, models) {
+        const results = await Promise.all(models.map(async model => {
+            const url = `https://aiplatform.googleapis.com/v1/publishers/google/models/${encodeURIComponent(model.id)}:countTokens?key=${encodeURIComponent(apiKey)}`;
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts: [{ text: 'model availability check' }] }]
+                    })
+                });
+                const data = await response.json().catch(() => ({}));
+                return {
+                    model,
+                    available: response.ok,
+                    status: response.status,
+                    message: data.error?.message || response.statusText || ''
+                };
+            } catch (error) {
+                return { model, available: false, status: 0, message: error.message || String(error) };
+            }
+        }));
+
+        const availableModels = results.filter(result => result.available).map(result => result.model);
+        if (availableModels.length === 0) {
+            const failure = results.find(result => result.message) || results[0];
+            const detail = failure ? `${failure.status || '通信'}: ${failure.message || '利用可能なモデルがありません'}` : '利用可能なモデルがありません';
+            throw new Error(detail);
+        }
+        return { availableModels, unavailableCount: results.length - availableModels.length };
+    }
+
+    async fetchAvailableModels(verifyAvailability = false) {
         const apiKey = this.getCurrentApiKey();
         const statusEl = document.getElementById('modelFetchStatus');
         if (this.getCurrentApiProvider() === 'vertex-express') {
-            const vertexModels = [
-                { id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash' },
-                { id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro' },
-                { id: 'gemini-2.5-flash-lite', displayName: 'Gemini 2.5 Flash Lite' }
-            ];
-            this.updateModelSelectOptions(vertexModels);
-            if (statusEl) statusEl.textContent = '✅ Vertex Express対応モデルを表示';
+            const vertexModels = this.getVertexExpressModelOptions();
+            if (!verifyAvailability) {
+                this.updateModelSelectOptions(vertexModels);
+                if (statusEl) statusEl.textContent = 'Vertex候補を表示中。「利用確認」で使用可否を確認できます';
+                return;
+            }
+            if (!apiKey) {
+                if (statusEl) statusEl.textContent = '※Vertex APIキーを設定してから利用確認してください';
+                return;
+            }
+            if (statusEl) statusEl.textContent = '⏳ Vertexで利用可能なモデルを確認中...';
+            try {
+                const { availableModels, unavailableCount } = await this.verifyVertexExpressModels(apiKey, vertexModels);
+                this.updateModelSelectOptions(availableModels);
+                if (statusEl) {
+                    statusEl.textContent = unavailableCount > 0
+                        ? `✅ ${availableModels.length}件利用可能（${unavailableCount}件対象外）`
+                        : `✅ ${availableModels.length}件すべて利用可能`;
+                }
+            } catch (error) {
+                console.warn('[verifyVertexExpressModels]', error);
+                if (statusEl) statusEl.textContent = `⚠️ Vertexモデル確認失敗: ${error.message}`;
+            }
             return;
         }
         if (!apiKey) {
