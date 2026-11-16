@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Gemini Auto-Split Recorder ver.1.3.1 (2026-11-16)</title>
+    <title>VoiceREC｜病状説明記録 ver.1.4.0</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23007bff' width='100' height='100' rx='20'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='central'>🎙️</text></svg>">
     <meta name="theme-color" content="#007bff">
@@ -1047,11 +1047,113 @@
             #log-view .container { max-width: 100%; }
         }
 
+        #clinical[hidden], #legacy[hidden], #clinical [hidden] { display: none !important; }
+        #clinical { background: #f3f6f5; min-height: 100vh; color: #183b38; font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; }
+        #clinical * { box-sizing: border-box; }
+        .clinical-width { width: min(1180px, 100%); margin: 0 auto; padding: 0 clamp(16px, 4vw, 48px); }
+        .clinical-bar { background: #fff; border-bottom: 1px solid #d6e0dd; }
+        .clinical-bar .clinical-width, .clinical-title, .clinical-card-head, .clinical-card-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .clinical-bar .clinical-width { min-height: 62px; }
+        .clinical-brand { display: flex; align-items: center; gap: 10px; font-family: "Inter", system-ui, sans-serif; font-weight: 700; font-size: 20px; letter-spacing: -.05em; }
+        .voice-mark { display: flex; align-items: center; justify-content: center; gap: 3px; width: 30px; height: 30px; background: #11695e; border-radius: 8px; }
+        .voice-mark i { width: 2px; height: 8px; border-radius: 2px; background: #fff; }
+        .voice-mark i:nth-child(2) { height: 17px; } .voice-mark i:nth-child(3) { height: 12px; }
+        .clinical-work { padding-bottom: 36px; }
+        .clinical-title { padding: clamp(24px, 4vw, 46px) 0 24px; }
+        #clinical h1 { margin: 0; font-size: clamp(26px, 3.5vw, 38px); line-height: 1.3; color: #143e39; letter-spacing: .015em; }
+        .clinical-title p { margin: 8px 0 0; color: #506863; }
+        #clinical button { flex: none; width: auto; min-height: 40px; padding: 7px 14px; background: white; color: #22544d; border: 1px solid #b5c9c3; border-radius: 7px; font-family: inherit; font-size: 14px; font-weight: 600; line-height: 1.4; }
+        #clinical button:hover:enabled { background: #eaf3ef; }
+        #clinical :focus-visible { outline: 3px solid #248777; outline-offset: 2px; }
+        #clinical button:disabled { opacity: .55; cursor: default; }
+        #clinicalOther, #clinicalNew { white-space: nowrap; }
+        .clinical-editors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+        .clinical-card { min-width: 0; background: #fff; border: 1px solid #cbdad5; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+        .clinical-card-head { min-height: 58px; padding: 12px 18px; border-bottom: 1px solid #dee7e3; }
+        #clinical h2, #clinical h2 label { margin: 0; font-size: 17px; font-weight: 700; color: #173f39; }
+        .clinical-card-head span { color: #536e66; font-size: 13px; font-variant-numeric: tabular-nums; }
+        .clinical-card textarea { width: 100%; flex: auto; display: block; min-height: 180px; height: clamp(260px, 34vh, 500px); padding: 17px 18px; border: 0; border-radius: 0; background: white; color: #213b36; resize: vertical; font: inherit; font-size: 16px; line-height: 1.8; }
+        #clinical textarea:focus-visible { outline-offset: -3px; }
+        #clinical textarea::placeholder { color: #6b7e78; }
+        .clinical-card-foot { padding: 10px 16px; border-top: 1px solid #e2eae6; }
+        .clinical-send { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(0,1fr) auto; align-items: end; gap: 10px 16px; margin-top: 18px; padding: 18px 20px; background: #e7f0ec; border: 1px solid #cbdcd4; border-radius: 12px; }
+        #clinical .clinical-send label { margin-bottom: 5px; color: #32594f; font-size: 13px; font-weight: 650; }
+        #clinical select { background: white; border-color: #b5c9c3; font-size: 16px; min-height: 43px; }
+        #clinical button.clinical-primary { min-height: 43px; background: #12695d; color: #fff; border-color: #12695d; padding-inline: 22px; }
+        #clinical button.clinical-primary:hover:enabled { background: #0b554b; }
+        .clinical-send-help { grid-column: 1/-1; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 20px; font-size: 13px; color: #4f6961; }
+        #clinical .clinical-link { background: transparent; border: 0; text-decoration: underline; text-underline-offset: 3px; padding: 0; min-height: 32px; }
+        .clinical-tabs { display: none; }
+        #clinicalStatus, #clinicalUsage { margin: 10px 2px 0; overflow-wrap: anywhere; }
+        #clinicalStatus[data-error="true"] { color: #963b22; }
+        #clinicalUsage, .clinical-prices, #clinicalSentBox { color: #405e55; font-size: 14px; }
+        #clinical details { margin-top: 16px; } #clinical summary { cursor: pointer; width: fit-content; }
+        #clinicalSent { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32vh; overflow: auto; background: white; padding: 14px; font: inherit; }
+        .clinical-prices table { border-collapse: collapse; width: min(100%, 480px); margin-bottom: 8px; }
+        .clinical-prices td, .clinical-prices th { padding: 6px 10px; text-align: left; border-bottom: 1px solid #d1dfd8; }
+        .clinical-prices td:last-child, .clinical-prices th:last-child { text-align: right; }
+        .clinical-prices a { color: #12695d; }
+        @media (max-width: 700px) {
+            .clinical-title { align-items: flex-start; gap: 6px; }
+            .clinical-title p { font-size: 14px; }
+            #clinical button { padding-inline: 10px; }
+            .clinical-tabs { display: flex; margin-bottom: 10px; gap: 6px; }
+            #clinical .clinical-tabs button { flex: 1; }
+            #clinical .clinical-tabs [aria-pressed="true"] { background: #d6e9df; border-color: #799c8f; }
+            .clinical-editors, .clinical-send { grid-template-columns: minmax(0,1fr); }
+            #clinicalEditors[data-pane="source"] #clinicalNotePanel, #clinicalEditors[data-pane="note"] #clinicalSourcePanel { display: none; }
+            .clinical-send { padding: 14px; }
+            .clinical-card textarea { height: 32vh; }
+        }
+        @media print { #clinical[hidden], #legacy[hidden] { display: none !important; } }
     </style>
 </head>
 <body>
 
-<div class="app-wrapper">
+<main id="clinical">
+    <header class="clinical-bar"><div class="clinical-width">
+        <div class="clinical-brand"><span class="voice-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>VoiceREC</div>
+        <button type="button" id="clinicalOther">その他の機能</button>
+    </div></header>
+    <div class="clinical-width clinical-work">
+        <div class="clinical-title">
+            <div><h1>病状説明記録</h1><p>文字起こしの内容とマスキングを確認して、カルテ用の記録案を作成します。</p></div>
+            <button type="button" id="clinicalNew">新しい記録</button>
+        </div>
+        <div class="clinical-tabs" aria-label="編集欄の切り替え">
+            <button type="button" id="clinicalTabSource" aria-controls="clinicalSourcePanel" aria-pressed="true">原文</button>
+            <button type="button" id="clinicalTabNote" aria-controls="clinicalNotePanel" aria-pressed="false">記録案</button>
+        </div>
+        <div id="clinicalEditors" class="clinical-editors" data-pane="source">
+            <section id="clinicalSourcePanel" class="clinical-card">
+                <div class="clinical-card-head"><h2><label for="clinicalSource">文字起こし原文</label></h2><span id="clinicalCount">0 字</span></div>
+                <textarea id="clinicalSource" autocomplete="off" spellcheck="false" placeholder="ここに文字起こしを貼り付けるか、テキストファイルを開いてください。"></textarea>
+                <div class="clinical-card-foot"><button type="button" id="clinicalOpen">テキストファイルを開く</button><input type="file" id="clinicalFile" accept=".txt,text/plain" hidden></div>
+            </section>
+            <section id="clinicalNotePanel" class="clinical-card">
+                <div class="clinical-card-head"><h2><label for="clinicalNote">病状説明記録案</label></h2><span id="clinicalNoteState"></span></div>
+                <textarea id="clinicalNote" autocomplete="off" spellcheck="false" readonly placeholder="作成した記録案が表示されます。内容を確認し、この欄で修正できます。"></textarea>
+                <div class="clinical-card-foot"><button type="button" id="clinicalCopy" disabled>カルテ用にコピー</button></div>
+            </section>
+        </div>
+        <details id="clinicalSentBox" hidden><summary>この記録案の作成に使った原文</summary><pre id="clinicalSent"></pre></details>
+        <section class="clinical-send" aria-label="AIへの送信">
+            <div><label for="clinicalProfile">送信先・APIキー</label><select id="clinicalProfile"></select></div>
+            <div><label for="clinicalModel">使用モデル</label><select id="clinicalModel"></select></div>
+            <button type="button" id="clinicalGenerate" class="clinical-primary" disabled>病状説明記録を作成</button>
+            <div class="clinical-send-help"><button type="button" class="clinical-link" id="clinicalSettings">APIキーを管理</button><span>作成時に、編集欄の原文を選択した接続先へ送信します。</span></div>
+        </section>
+        <p id="clinicalStatus" role="status"></p>
+        <p id="clinicalUsage" aria-live="polite"></p>
+        <details class="clinical-prices"><summary>3時間分の編集料金を比較</summary>
+            <p>文字起こし済みのテキストを1回編集する想定。入力5万・出力5千トークン（思考を含む）、1ドル160円。Gemini Developer APIの有料標準料金での目安です。</p>
+            <table><thead><tr><th>モデル</th><th>1回の概算</th></tr></thead><tbody id="clinicalPrices"></tbody></table>
+            <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noopener noreferrer">Googleの料金表</a>
+        </details>
+    </div>
+</main>
+
+<div class="app-wrapper" id="legacy" hidden>
     <!-- 1. マイク画面 -->
     <div id="main-view" class="view active idle">
         <small id="secureRoute" hidden></small>
@@ -1270,6 +1372,7 @@
 
     <!-- 下端タブバー -->
     <nav class="bottom-tab-bar" role="tablist">
+        <button type="button" class="bottom-tab-btn" id="returnClinical" aria-label="病状説明記録に戻る"><span class="tab-icon">↩</span><span>病状説明</span></button>
         <button type="button" class="bottom-tab-btn active" data-tab="main" aria-label="マイク"><span class="tab-icon">🎙️</span><span>マイク</span></button>
         <button type="button" class="bottom-tab-btn" data-tab="settings" aria-label="設定"><span class="tab-icon">⚙️</span><span>設定</span></button>
         <button type="button" class="bottom-tab-btn" data-tab="input" aria-label="入力"><span class="tab-icon">📄</span><span>入力</span></button>
@@ -2245,9 +2348,9 @@ class RecorderApp {
         }
     }
 
-    buildGenerateContentUrl() {
-        const encodedModel = encodeURIComponent(this.MODEL_NAME);
-        if (this.getCurrentApiProvider() === 'vertex-express') {
+    buildGenerateContentUrl(model = this.MODEL_NAME, provider = this.getCurrentApiProvider()) {
+        const encodedModel = encodeURIComponent(model);
+        if (provider === 'vertex-express') {
             return `https://aiplatform.googleapis.com/v1/publishers/google/models/${encodedModel}:generateContent`;
         }
         return `https://generativelanguage.googleapis.com/v1beta/models/${encodedModel}:generateContent`;
@@ -2375,8 +2478,8 @@ class RecorderApp {
     /**
      * Gets the prompt template based on selected mode.
      */
-    getPromptTemplate(inputType = 'audio') {
-        const selectedMode = document.querySelector('input[name="recordingMode"]:checked')?.value || 'meeting';
+    getPromptTemplate(inputType = 'audio', mode) {
+        const selectedMode = mode || document.querySelector('input[name="recordingMode"]:checked')?.value || 'meeting';
         const isText = inputType === 'text';
         const SRC = isText ? 'テキスト' : '音声';
         const UNCLEAR = isText ? '判読できなかった' : '聞き取れなかった';
@@ -2599,12 +2702,12 @@ KEYWORDS: keyword1, keyword2`
     /**
      * Check if rate limit is exceeded
      */
-    checkRateLimit() {
+    checkRateLimit(rpmLimit = this.RPM_LIMIT, rpdLimit = this.RPD_LIMIT) {
         const now = Date.now();
         
         // Check RPM
         if (this.rpmResetTime && now < this.rpmResetTime) {
-            if (this.rpmCount >= this.RPM_LIMIT) {
+            if (this.rpmCount >= rpmLimit) {
                 const waitTime = Math.ceil((this.rpmResetTime - now) / 1000);
                 throw new Error(`RPM制限に達しました。${waitTime}秒後に再試行してください。`);
             }
@@ -2616,7 +2719,7 @@ KEYWORDS: keyword1, keyword2`
 
         // Check RPD
         if (this.rpdResetTime && now < this.rpdResetTime) {
-            if (this.rpdCount >= this.RPD_LIMIT) {
+            if (this.rpdCount >= rpdLimit) {
                 const waitTime = Math.ceil((this.rpdResetTime - now) / 1000);
                 const waitHours = Math.floor(waitTime / 3600);
                 const waitMinutes = Math.floor((waitTime % 3600) / 60);
@@ -2959,12 +3062,12 @@ KEYWORDS: keyword1, keyword2`
     /**
      * テキストをGemini APIに送信し、整理されたテキストを返す
      */
-    async executeTextApiCall(inputText) {
-        const apiKey = this.getCurrentApiKey();
+    async executeTextApiCall(inputText, clinical) {
+        const apiKey = clinical ? clinical.profile.key : this.getCurrentApiKey();
         if (!apiKey) throw new Error('APIキーが設定されていません');
-        const url = this.buildGenerateContentUrl();
+        const url = clinical ? this.buildGenerateContentUrl(clinical.model, clinical.profile.provider || 'developer') : this.buildGenerateContentUrl();
         // テキスト専用プロンプトを直接生成（音声前提の文言・後付け上書きが不要になり入力トークン削減）
-        const promptText = this.getPromptTemplate('text');
+        const promptText = this.getPromptTemplate('text', clinical ? 'medical' : undefined);
         const payload = {
             contents: [{
                 role: 'user',
@@ -2973,11 +3076,12 @@ KEYWORDS: keyword1, keyword2`
                 ]
             }]
         };
-        this.checkRateLimit();
+        this.checkRateLimit(clinical ? clinical.profile.rpmLimit || 5 : undefined, clinical ? clinical.profile.rpdLimit || 20 : undefined);
         this.incrementRateLimit();
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
-        let response;
+        const controller = clinical?.controller || new AbortController();
+        const timeoutSeconds = clinical ? 300 : 90;
+        const timeoutId = setTimeout(() => controller.abort(), timeoutSeconds * 1000);
+        let response, data;
         try {
             response = await fetch(url, {
                 method: 'POST',
@@ -2985,17 +3089,23 @@ KEYWORDS: keyword1, keyword2`
                 body: JSON.stringify(payload),
                 signal: controller.signal
             });
+            data = await response.json();
         } catch (e) {
-            clearTimeout(timeoutId);
-            if (e.name === 'AbortError') throw new Error('API応答がタイムアウトしました（90秒）。');
+            if (e.name === 'AbortError') throw new Error('API応答がタイムアウトしました（' + timeoutSeconds + '秒）。');
+            if (response && !response.ok) throw new Error('HTTP ' + response.status);
             throw e;
+        } finally {
+            clearTimeout(timeoutId);
         }
-        clearTimeout(timeoutId);
-        const data = await response.json().catch(() => ({}));
         if (data.error) throw new Error(data.error.message || String(data.error));
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${data.error?.message || response.statusText || 'Unknown error'}`);
         const text = data.candidates?.[0]?.content?.parts?.filter(part => !part.thought && typeof part.text === 'string').map(part => part.text).join('');
         if (!text) throw new Error(data.error?.message || '本文を取得できませんでした');
+        if (clinical) {
+            const finishReason = data.candidates[0].finishReason;
+            if (finishReason && !['STOP', 'MAX_TOKENS'].includes(finishReason)) throw new Error('生成が中断されました（' + finishReason + '）。');
+            return { text, usage: data.usageMetadata, finishReason };
+        }
         return text;
     }
 
@@ -3562,6 +3672,271 @@ KEYWORDS: keyword1, keyword2`
     }
 }
 
+const CLINICAL_MODEL = 'gemini-4-hydrogen';
+
+// Published Gemini Developer API Standard text rates, USD per million tokens.
+function clinicalRates(model, date) {
+    const day = date.toISOString().slice(0, 10);
+    switch (model) {
+        case 'gemini-3.5-flash-lite': return { input: .30, output: 2.50, cached: .03 };
+        case 'gemini-3.8-flash': return day < '2027-01-01'
+            ? { input: .75, output: 3.75, cached: .075 } : { input: 1.50, output: 7.50, cached: .15 };
+        case CLINICAL_MODEL: return { input: 1.50, output: 7.50, cached: .075 };
+        case 'gemini-4-argon':
+        case 'gemini-4-carbon': return day < '2026-12-01'
+            ? { input: 2, output: 10, cached: .10 } : { input: 4, output: 20, cached: .20 };
+        default: return null;
+    }
+}
+
+function clinicalUsage(model, usage, date) {
+    const rate = clinicalRates(model, date);
+    const { promptTokenCount: input, candidatesTokenCount: output, totalTokenCount: total,
+        cachedContentTokenCount: cached = 0, toolUsePromptTokenCount: tools = 0 } = usage || {};
+    const thoughts = usage?.thoughtsTokenCount ?? (total === input + output ? 0 : undefined);
+    const validCount = number => Number.isSafeInteger(number) && number >= 0;
+    if (!rate || ![input, output, thoughts, cached].every(validCount) || cached > input || tools !== 0 ||
+        (total != null && total !== input + output + thoughts))
+        return '料金算定不能（利用量の内訳が不足、または標準料金の対象外）';
+    const yen = ((input - cached) * rate.input + cached * rate.cached + (output + thoughts) * rate.output) * 160 / 1e6;
+    const fmt = number => number.toLocaleString('ja-JP');
+    const cacheLabel = cached ? '（うちキャッシュ ' + fmt(cached) + '）' : '';
+    return '入力 ' + fmt(input) + cacheLabel + ' ／ 本文出力 ' + fmt(output) + ' ／ 思考 ' + fmt(thoughts)
+        + ' トークン · Developer API有料標準料金換算 約' + yen.toFixed(2) + '円（1ドル160円）';
+}
+
+class ClinicalEditor {
+    constructor(recorder) {
+        this.recorder = recorder;
+        const byId = suffix => document.getElementById('clinical' + suffix);
+        this.root = byId('');
+        this.legacy = document.getElementById('legacy');
+        this.source = byId('Source');
+        this.note = byId('Note');
+        this.profile = byId('Profile');
+        this.model = byId('Model');
+        this.file = byId('File');
+        this.submit = byId('Generate');
+        this.copy = byId('Copy');
+        this.status = byId('Status');
+        this.usage = byId('Usage');
+        this.sent = byId('Sent');
+        this.sentBox = byId('SentBox');
+        this.count = byId('Count');
+        this.noteState = byId('NoteState');
+        this.tabSource = byId('TabSource');
+        this.tabNote = byId('TabNote');
+        this.editors = byId('Editors');
+        this.open = byId('Open');
+        this.settings = byId('Settings');
+        this.other = byId('Other');
+        this.revision = 0;
+        this.request = null;
+        this.loadingFile = false;
+        this.copied = false;
+        this.noteEdited = false;
+        this.truncated = false;
+        for (const entry of MODEL_PRESETS) {
+            this.model.add(new Option(entry.displayName, entry.id));
+            const rate = clinicalRates(entry.id, new Date());
+            const row = byId('Prices').insertRow();
+            row.insertCell().textContent = entry.displayName;
+            row.insertCell().textContent = '約' + ((rate.input * 50000 + rate.output * 5000) * 160 / 1e6).toFixed(2) + '円';
+        }
+        const savedModel = localStorage.getItem('voice_rec_clinical_model');
+        this.model.value = MODEL_PRESETS.some(m => m.id === savedModel) ? savedModel : CLINICAL_MODEL;
+        this.model.addEventListener('change', () => localStorage.setItem('voice_rec_clinical_model', this.model.value));
+        this.profile.addEventListener('change', () => {
+            localStorage.setItem('voice_rec_clinical_profile', this.profile.value);
+            this.updateControls();
+        });
+        this.source.addEventListener('input', () => { this.copied = false; this.updateControls(); });
+        this.note.addEventListener('input', () => { this.copied = false; this.noteEdited = true; this.updateControls(); });
+        this.file.addEventListener('change', () => this.importFile());
+        this.open.addEventListener('click', () => this.file.click());
+        this.submit.addEventListener('click', () => this.generate());
+        this.copy.addEventListener('click', () => this.copyNote());
+        byId('New').addEventListener('click', () => {
+            if (this.confirmDiscard()) { this.clearCase(); this.source.focus(); }
+        });
+        this.tabSource.addEventListener('click', () => this.showPane('source'));
+        this.tabNote.addEventListener('click', () => this.showPane('note'));
+        this.other.addEventListener('click', () => this.showLegacy('main'));
+        this.settings.addEventListener('click', () => this.showLegacy('settings'));
+        document.getElementById('returnClinical').addEventListener('click', () => this.show());
+        window.addEventListener('beforeunload', event => {
+            if (this.hasPending()) { event.preventDefault(); event.returnValue = ''; }
+        });
+        // A restored back/forward-cache entry must open on a clean case as well.
+        window.addEventListener('pagehide', () => this.clearCase());
+        this.show();
+    }
+
+    show() {
+        if (this.recorder.isRecording || this.recorder.btnMic.disabled) {
+            alert('録音を停止してから病状説明記録に戻ってください。');
+            return;
+        }
+        this.legacy.hidden = true;
+        this.root.hidden = false;
+        const saved = localStorage.getItem('voice_rec_clinical_profile');
+        const keys = this.recorder.apiKeys;
+        this.profile.replaceChildren(new Option(keys.length ? '送信先を選択' : 'APIキーを登録してください', ''));
+        for (const p of keys) {
+            const provider = p.provider === 'vertex-express' ? 'Vertex Express' : 'Developer API';
+            this.profile.add(new Option(provider + ' ／ ' + p.name, p.id));
+        }
+        this.profile.value = (saved === null && keys.length === 1) ? keys[0].id : saved || '';
+        if (!this.profile.value) this.profile.value = '';
+        this.updateControls();
+        window.scrollTo(0, 0);
+    }
+
+    showLegacy(view) {
+        if (this.request || this.loadingFile) return;
+        this.root.hidden = true;
+        this.legacy.hidden = false;
+        this.recorder.showView(view);
+        if (view === 'settings') {
+            document.getElementById('apiKeyPanel').classList.add('open');
+            document.getElementById('apiKeyToggle').classList.add('active');
+        }
+        window.scrollTo(0, 0);
+    }
+
+    showPane(name) {
+        this.editors.dataset.pane = name;
+        this.tabSource.setAttribute('aria-pressed', String(name === 'source'));
+        this.tabNote.setAttribute('aria-pressed', String(name === 'note'));
+    }
+
+    message(text, error = false) {
+        this.status.textContent = text;
+        this.status.dataset.error = String(error);
+    }
+
+    hasPending() {
+        return Boolean(this.request || this.loadingFile || (!this.copied &&
+            (this.source.value || this.note.value || this.sent.textContent)));
+    }
+
+    confirmDiscard() {
+        return !this.hasPending() || confirm('現在の原文と記録案を破棄して、新しい記録を開きますか？');
+    }
+
+    clearCase() {
+        this.revision++;
+        this.request?.abort();
+        this.request = null;
+        this.loadingFile = this.copied = this.noteEdited = this.truncated = false;
+        this.source.value = this.note.value = this.file.value = '';
+        this.sent.textContent = this.usage.textContent = '';
+        this.sentBox.open = false;
+        this.message('');
+        this.showPane('source');
+        this.updateControls();
+    }
+
+    updateControls() {
+        const busy = Boolean(this.request || this.loadingFile);
+        const attached = Boolean(this.sent.textContent);
+        const stale = attached && this.source.value !== this.sent.textContent;
+        this.source.readOnly = busy;
+        this.note.readOnly = busy || !attached;
+        for (const el of [this.model, this.profile, this.open, this.other, this.settings]) el.disabled = busy;
+        this.copy.disabled = busy || !this.note.value.trim() || stale;
+        this.submit.disabled = busy || !this.source.value.trim() || !this.profile.value;
+        this.submit.textContent = this.request ? '作成中…' : attached ? '病状説明記録を再作成' : '病状説明記録を作成';
+        this.count.textContent = this.source.value.length.toLocaleString('ja-JP') + ' 字';
+        this.sentBox.hidden = !stale;
+        if (!stale) this.sentBox.open = false;
+        this.noteState.textContent = stale ? '原文変更後・要再作成' : this.truncated ? '途中までの出力' :
+            this.copied ? 'コピー済み' : this.noteEdited ? '編集済み' : attached ? '作成済み' : '';
+    }
+
+    async importFile() {
+        const file = this.file.files[0];
+        this.file.value = '';
+        if (!file || this.request || this.loadingFile || !this.confirmDiscard()) return;
+        const revision = ++this.revision;
+        this.loadingFile = true;
+        this.updateControls();
+        try {
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            const encoding = bytes[0] === 255 && bytes[1] === 254 ? 'utf-16le' :
+                bytes[0] === 254 && bytes[1] === 255 ? 'utf-16be' : 'utf-8';
+            let value;
+            try {
+                value = new TextDecoder(encoding, { fatal: true }).decode(bytes);
+            } catch (error) {
+                if (encoding !== 'utf-8') throw error;
+                value = new TextDecoder('shift_jis', { fatal: true }).decode(bytes);
+            }
+            if (!value.trim() || value.includes('\u0000')) throw new Error();
+            if (revision !== this.revision) return;
+            this.clearCase();
+            this.source.value = value;
+            this.updateControls();
+            this.message('ファイルを読み込みました。送信前に原文を確認してください。');
+            this.source.focus();
+        } catch {
+            if (revision === this.revision) this.message('テキストを読み込めませんでした。内容を直接貼り付けることもできます。', true);
+        } finally {
+            if (revision === this.revision) { this.loadingFile = false; this.updateControls(); }
+        }
+    }
+
+    async generate() {
+        const profile = this.recorder.apiKeys.find(p => p.id === this.profile.value);
+        const source = this.source.value;
+        if (!source.trim() || !profile?.key || this.request || this.loadingFile) return;
+        if (this.noteEdited && !confirm('再作成が成功すると、手直しした記録案を置き換えます。続けますか？')) return;
+        localStorage.setItem('voice_rec_clinical_profile', profile.id);
+        const controller = new AbortController();
+        const model = this.model.value;
+        const sentAt = new Date();
+        this.request = controller;
+        this.updateControls();
+        this.message('Geminiで記録案を作成しています…');
+        try {
+            const result = await this.recorder.executeTextApiCall(source, { profile, model, controller });
+            if (this.request !== controller) return;
+            this.sent.textContent = source;
+            this.note.value = result.text;
+            this.truncated = result.finishReason === 'MAX_TOKENS';
+            this.copied = this.noteEdited = false;
+            this.usage.textContent = model + ' · ' + clinicalUsage(model, result.usage, sentAt);
+            this.message(this.truncated ? '出力上限に達したため、記録案は途中までです。' : '記録案を作成しました。内容を確認・修正してコピーしてください。', this.truncated);
+            this.showPane('note');
+        } catch (error) {
+            if (this.request === controller) this.message('作成できませんでした。' + error.message, true);
+        } finally {
+            if (this.request === controller) { this.request = null; this.updateControls(); }
+        }
+    }
+
+    async copyNote() {
+        if (this.copy.disabled) return;
+        const revision = this.revision;
+        const value = this.note.value;
+        const stillCurrent = () => revision === this.revision && value === this.note.value && !this.copy.disabled;
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch {
+            if (!stillCurrent()) return;
+            this.note.focus();
+            this.note.select();
+            let ok = false;
+            try { ok = document.execCommand('copy'); } catch {}
+            if (!ok) { this.message('記録案を選択しました。端末のコピー操作を使用してください。', true); return; }
+        }
+        if (!stillCurrent()) return;
+        this.copied = true;
+        this.updateControls();
+        this.message('編集欄の記録案をコピーしました。');
+    }
+}
+
 // アプリ更新: キャッシュ削除・SW解除・リロード
 async function forceAppUpdate() {
     const btn = document.getElementById('btnAppUpdate');
@@ -3589,6 +3964,7 @@ async function forceAppUpdate() {
 let app;
 window.addEventListener('DOMContentLoaded', () => {
     app = new RecorderApp();
+    app.clinical = new ClinicalEditor(app);
     
     document.getElementById('btnAppUpdate')?.addEventListener('click', forceAppUpdate);
     
