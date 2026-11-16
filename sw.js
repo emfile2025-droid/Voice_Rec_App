@@ -1,5 +1,5 @@
 const PREFIX = 'voice-rec:' + self.registration.scope + ':';
-const CACHE = PREFIX + '1.3.0';
+const CACHE = PREFIX + '1.3.1';
 const assets = ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png']
     .map(path => new URL(path, self.registration.scope).href);
 self.addEventListener('install', event => {
