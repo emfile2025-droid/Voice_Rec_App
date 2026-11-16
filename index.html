@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Gemini Auto-Split Recorder ver.1.2.0 (2026-07-22)</title>
+    <title>Gemini Auto-Split Recorder ver.1.3.0 (2026-11-16)</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23007bff' width='100' height='100' rx='20'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='central'>🎙️</text></svg>">
     <meta name="theme-color" content="#007bff">
@@ -851,7 +851,7 @@
             }
         }
 
-        /* API制限設定のレスポンシブ */
+        /* 端末の送信回数設定のレスポンシブ */
         @media (max-width: 640px) {
             .input-group > div[style*="grid"] {
                 grid-template-columns: 1fr !important;
@@ -895,6 +895,11 @@
         }
         .settings-fab:hover { background: #fff; border-color: #3b82f6; transform: scale(1.05); }
         
+        #secureRoute {
+            margin: 16px 24px 0;
+            overflow-wrap: anywhere;
+            text-align: center;
+        }
         .mic-button-wrapper {
             flex: 1;
             display: flex;
@@ -1037,7 +1042,7 @@
         .sub-tab-panel.active { display: block; }
 
         @media print {
-            .bottom-tab-bar, .settings-fab, .back-to-main, .log-output-buttons, .log-actions, .log-retry-actions { display: none !important; }
+            #btnPendingAudio, #pendingAudio, .bottom-tab-bar, .settings-fab, .back-to-main, .log-output-buttons, .log-actions, .log-retry-actions { display: none !important; }
             .view { display: block !important; }
             #log-view .container { max-width: 100%; }
         }
@@ -1049,6 +1054,7 @@
 <div class="app-wrapper">
     <!-- 1. マイク画面 -->
     <div id="main-view" class="view active idle">
+        <small id="secureRoute" hidden></small>
         <div class="mic-button-wrapper">
             <button type="button" id="btnMic" class="mic-button idle" aria-label="録音">
                 <span class="mic-icon">🎙️</span>
@@ -1068,7 +1074,7 @@
         <div class="container">
     <div class="header-row">
         <h1>🎙️ Gemini Auto-Split Recorder</h1>
-        <button type="button" id="btnAppUpdate" class="app-update-btn" title="キャッシュを削除して最新版を取得">🔄 アプリ更新</button>
+        <button type="button" id="btnAppUpdate" class="app-update-btn" title="このアプリの最新版を取得">🔄 アプリ更新</button>
     </div>
     
     <div class="input-group">
@@ -1105,12 +1111,11 @@
     <div class="input-group">
         <label for="modelSelect">使用モデル</label>
         <select id="modelSelect" style="width: 100%; padding: 10px; border-radius: 6px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-color);">
-            <option value="gemini-2.5-flash">Gemini 2.5 Flash（無料枠推奨）</option>
-            <option value="gemini-2.5-pro">Gemini 2.5 Pro（有料・高精度）</option>
-            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite（軽量）</option>
+            <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite</option>
+            <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
         </select>
         <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; width: 100%; box-sizing: border-box;">
-            <small id="modelFetchStatus" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">※秘匿性の高い会議モードでは自動的にProモデルが選択されます</small>
+            <small id="modelFetchStatus" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">「最新取得」で接続先のモデル候補を更新できます。</small>
             <button type="button" id="btnFetchModels" style="padding: 4px 10px; font-size: 0.75rem; background: var(--input-bg); color: var(--primary-color); border: 1px solid var(--primary-color); border-radius: 6px; cursor: pointer; white-space: nowrap; flex: none;">🔄 最新取得</button>
         </div>
     </div>
@@ -1132,7 +1137,7 @@
             </div>
             <div class="mode-option">
                 <input type="radio" id="mode-secure" name="recordingMode" value="secure">
-                <label for="mode-secure">🔒 秘匿性の高い会議<br><small>有料API推奨</small></label>
+                <label for="mode-secure">🔒 秘匿性の高い会議<br><small>送信先を設定画面で確認</small></label>
             </div>
         </div>
     </div>
@@ -1141,7 +1146,7 @@
         <div class="settings-toggle" id="settingsToggle">
             <div class="settings-toggle-content">
                 <span class="settings-icon">⚙️</span>
-                <label style="margin: 0; cursor: pointer; font-weight: 500;">API制限設定</label>
+                <label style="margin: 0; cursor: pointer; font-weight: 500;">端末で設定する送信回数の上限</label>
             </div>
             <span style="font-size: 0.875rem; color: var(--text-muted); transition: transform 0.3s;">▼</span>
         </div>
@@ -1195,7 +1200,7 @@
 
     <!-- モデル表示用 -->
     <div style="margin-bottom: 16px; font-size: 0.875rem; color: var(--text-muted);">
-        使用モデル: <span class="model-name" id="modelDisplay">gemini-2.5-flash</span>
+        送信先: <span id="destinationDisplay"></span> ／ 使用モデル: <span class="model-name" id="modelDisplay">gemini-3.5-flash-lite</span>
     </div>
         </div>
     </div>
@@ -1248,6 +1253,8 @@
     <div id="log-view" class="view">
         <div class="container">
             <h3 style="margin: 0 0 12px 0;">📋 要約出力</h3>
+            <button type="button" id="btnPendingAudio" class="log-output-btn">端末に残っている録音を確認</button>
+            <div id="pendingAudio" aria-live="polite"></div>
             <div class="log-output-buttons" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
                 <button type="button" id="btnCopyAll" class="log-output-btn">📋 コピー</button>
                 <button type="button" id="btnExportAll" class="log-output-btn">💾 出力</button>
@@ -1272,10 +1279,26 @@
  * Application Core Logic
  * Handles MediaRecorder, Timer Management, and Gemini API Interaction.
  */
+const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
+const MEETING_MODEL = 'gemini-3.8-flash';
+const MODEL_PRESETS = [
+    { id: DEFAULT_MODEL, displayName: 'Gemini 3.5 Flash-Lite' },
+    { id: MEETING_MODEL, displayName: 'Gemini 3.8 Flash' }
+];
+
+function migrateModel(id, provider) {
+    if (id === 'gemini-2.5-pro') return MEETING_MODEL;
+    if (!id || id === 'gemini-2.5-flash' ||
+        (provider === 'vertex-express' && id === 'gemini-2.5-flash-lite')) return DEFAULT_MODEL;
+    return id;
+}
+
 class RecorderApp {
     constructor() {
         // Configuration
-        this.MODEL_NAME = "gemini-2.5-flash"; // 無料枠で利用可能 
+        this.MODEL_NAME = DEFAULT_MODEL;
+        this.catalogRequest = 0;
+        this.draftModels = {};
         this.SEGMENT_LIMIT_MS = 15 * 60 * 1000; // 15 minutes (Safe margin for 20MB limit)
         // this.SEGMENT_LIMIT_MS = 1 * 60 * 1000; // Debug: 1 minute
 
@@ -1332,6 +1355,7 @@ class RecorderApp {
         this.rpdCountdownDisplay = document.getElementById('rpdCountdown');
         this.rpmCountdownTime = document.getElementById('rpmCountdownTime');
         this.rpdCountdownTime = document.getElementById('rpdCountdownTime');
+        document.getElementById('btnPendingAudio').addEventListener('click', () => this.listPendingAudio());
         this.btnExportAll = document.getElementById('btnExportAll');
         this.audioFileInput = document.getElementById('audioFileInput');
         this.btnLoadFile = document.getElementById('btnLoadFile');
@@ -1363,7 +1387,10 @@ class RecorderApp {
         if (this.btnAddApiKey) this.btnAddApiKey.addEventListener('click', () => this.addNewApiKey());
         if (this.btnSaveApiKey) this.btnSaveApiKey.addEventListener('click', () => this.saveApiKey());
         if (this.btnDeleteApiKey) this.btnDeleteApiKey.addEventListener('click', () => this.deleteApiKey());
-        if (this.apiKeySelect) this.apiKeySelect.addEventListener('change', (e) => this.selectApiKey(e.target.value));
+        if (this.apiKeySelect) this.apiKeySelect.addEventListener('change', (e) => {
+            this.selectApiKey(e.target.value);
+            if (this.modelField() === 'secureModel' && e.target.value) localStorage.setItem('voice_rec_secure_profile', e.target.value);
+        });
         if (this.apiProviderSelect) this.apiProviderSelect.addEventListener('change', (e) => this.updateApiProvider(e.target.value));
         if (this.modelSelect) this.modelSelect.addEventListener('change', (e) => this.updateModel(e.target.value));
         
@@ -1378,13 +1405,14 @@ class RecorderApp {
         if (savedKey && this.apiKeys.length === 0) {
             // 既存のAPIキーを移行
             this.addApiKey('既存のAPIキー', savedKey);
+            localStorage.removeItem('gemini_api_key');
         }
         
         // Load Mode from localStorage
         // 傷病者モード廃止のため patient は meeting にフォールバック
         const savedModeRaw = localStorage.getItem('recording_mode') || 'meeting';
         const savedMode = savedModeRaw === 'patient' ? 'meeting' : savedModeRaw;
-        const modeInput = document.querySelector(`input[name="recordingMode"][value="${savedMode}"]`);
+        const modeInput = Array.from(this.modeInputs).find(input => input.value === savedMode);
         if (modeInput) modeInput.checked = true;
         else {
             const meetingInput = document.querySelector('input[name="recordingMode"][value="meeting"]');
@@ -1404,11 +1432,11 @@ class RecorderApp {
         // Load Rate Limit Settings
         const savedRpm = localStorage.getItem('rpm_limit');
         const savedRpd = localStorage.getItem('rpd_limit');
-        if (savedRpm) {
+        if (!this.currentApiKeyId && savedRpm) {
             this.rpmLimitInput.value = savedRpm;
             this.RPM_LIMIT = parseInt(savedRpm);
         }
-        if (savedRpd) {
+        if (!this.currentApiKeyId && savedRpd) {
             this.rpdLimitInput.value = savedRpd;
             this.RPD_LIMIT = parseInt(savedRpd);
         }
@@ -1501,13 +1529,15 @@ class RecorderApp {
                 this.btnSubmitTextFile.disabled = true;
                 this.btnSubmitTextFile.textContent = '⏳ 処理中...';
                 try {
-                    await this.processTextInput(this.loadedTextFileContent);
+                    const submitted = this.loadedTextFileContent;
+                    const succeeded = await this.processTextInput(submitted);
+                    this.showView('log');
+                    if (!succeeded || this.loadedTextFileContent !== submitted) return;
                     this.loadedTextFileContent = '';
                     if (this.textFilePreview) { this.textFilePreview.textContent = ''; this.textFilePreview.style.display = 'none'; }
                     const row = document.getElementById('textFileSubmitRow');
                     if (row) row.style.display = 'none';
                     if (this.textFileInput) this.textFileInput.value = '';
-                    this.showView('log');
                 } finally {
                     this.btnSubmitTextFile.disabled = false;
                     this.btnSubmitTextFile.textContent = '🚀 このテキストを要約';
@@ -1525,10 +1555,10 @@ class RecorderApp {
                 this.btnSubmitText.disabled = true;
                 this.btnSubmitText.textContent = '⏳ 処理中...';
                 try {
-                    await this.processTextInput(text);
+                    const succeeded = await this.processTextInput(text);
+                    if (succeeded && this.textInputArea.value.trim() === text) this.textInputArea.value = '';
                     this.showView('log');
                 } finally {
-                    this.textInputArea.value = '';
                     this.btnSubmitText.disabled = false;
                     this.btnSubmitText.textContent = '🚀 テキストを要約';
                 }
@@ -1698,7 +1728,7 @@ class RecorderApp {
         let mimeToUse = effectiveMime;
         if (['.m4a', '.mp4', '.aac'].includes(ext) || ['audio/mp4', 'video/mp4'].includes(effectiveMime)) {
             const wavBlob = await this.convertToWav(file);
-            if (wavBlob) {
+            if (wavBlob && wavBlob.size <= MAX_SIZE_MB * 1024 * 1024) {
                 blobToUse = wavBlob;
                 mimeToUse = 'audio/wav';
             }
@@ -1716,6 +1746,13 @@ class RecorderApp {
      * Starts the recording process.
      * Requests microphone access and sets up the MediaRecorder.
      */
+    setRecordingSettingsLocked(locked) {
+        for (const element of [this.apiProviderSelect, this.apiKeySelect, this.apiKeyInput,
+            this.btnAddApiKey, this.btnDeleteApiKey, this.btnSaveApiKey, this.modelSelect, ...this.modeInputs]) {
+            if (element) element.disabled = locked;
+        }
+    }
+
     async startRecording() {
         const apiKey = this.getCurrentApiKey();
         if (!apiKey) {
@@ -1734,6 +1771,9 @@ class RecorderApp {
             alert('マイクにアクセスできません。HTTPSまたはlocalhostで開いているか確認してください。\n\n（Chromeではfile://では録音できません）');
             return;
         }
+        if (this.btnMic.disabled || this.isRecording) return;
+        this.btnMic.disabled = true;
+        this.setRecordingSettingsLocked(true);
         let stream = null;
         try {
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1779,6 +1819,7 @@ class RecorderApp {
 
         } catch (err) {
             console.error('Error accessing microphone or starting recorder:', err);
+            this.setRecordingSettingsLocked(false);
             if (stream) stream.getTracks().forEach(t => t.stop());
             const msg = err && err.message ? err.message : String(err);
             let help = '';
@@ -1791,7 +1832,11 @@ class RecorderApp {
             } else {
                 help = '\n\n設定を確認するか、Safariの通常ブラウザでお試しください。';
             }
+            if (this.wakeLock) this.wakeLock.release().catch(() => {});
+            this.wakeLock = null;
             alert('マイクへのアクセス、または録音の開始に失敗しました。\n\n詳細: ' + msg + help);
+        } finally {
+            this.btnMic.disabled = false;
         }
     }
 
@@ -1856,19 +1901,30 @@ class RecorderApp {
             const audioBlob = new Blob(this.audioChunks, { type: this.recordingMimeType });
             
             // Process this segment
-            this.processAudioSegment(audioBlob, this.segmentCounter);
+            this.processAudioSegment(audioBlob, this.segmentCounter++, mimeType);
+            if (this.segmentCounterDisplay) this.segmentCounterDisplay.textContent = this.segmentCounter;
 
             // Prepare for next segment if we are essentially still "recording" (auto-split)
             if (this.isRecording) {
-                this.segmentCounter++;
                 this.audioChunks = [];
                 this.startTime = Date.now(); // Reset timer base
-                if (this.startWithTimeslice) {
-                    this.mediaRecorder.start(1000);
-                } else {
-                    this.mediaRecorder.start();
+                try {
+                    if (this.startWithTimeslice) this.mediaRecorder.start(1000);
+                    else this.mediaRecorder.start();
+                } catch (error) {
+                    this.isRecording = false;
+                    stream.getTracks().forEach(track => track.stop());
+                    this.setRecordingSettingsLocked(false);
+                    this.updateUIState(false);
+                    this.stopTimer();
+                    this.wakeLock?.release().catch(() => {});
+                    this.wakeLock = null;
+                    alert('次の区間の録音を開始できませんでした。' + error.message);
                 }
-                console.log(`Segment ${this.segmentCounter} started (Auto-split).`);
+            } else {
+                stream.getTracks().forEach(track => track.stop());
+                this.setRecordingSettingsLocked(false);
+                this.btnMic.disabled = false;
             }
         };
     }
@@ -1878,25 +1934,27 @@ class RecorderApp {
      * @param {boolean} fullStop - If true, stops completely. If false, it's a segment split.
      */
     stopRecording(fullStop = false) {
-        if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') return;
+        if (!this.mediaRecorder) return;
 
         if (fullStop) {
             this.isRecording = false; // Stop the loop
+            this.btnMic.disabled = true;
             this.updateUIState(false);
             this.stopTimer();
             
             // ★ 常時点灯を解除（バッテリー節約のため）
             if (this.wakeLock) {
-                this.wakeLock.release()
+                const lock = this.wakeLock;
+                this.wakeLock = null;
+                lock.release()
                     .then(() => {
-                        this.wakeLock = null;
                         console.log('Screen Wake Lock released');
                     });
             }
         }
         
         // This triggers onstop, which handles processing and potential restarting
-        this.mediaRecorder.stop(); 
+        if (this.mediaRecorder.state !== 'inactive') this.mediaRecorder.stop();
     }
 
     /**
@@ -1951,10 +2009,21 @@ class RecorderApp {
      * Update model display
      */
     updateModelDisplay() {
+        const destination = document.getElementById('destinationDisplay');
+        if (destination) destination.textContent = (this.getCurrentApiProvider() === 'vertex-express' ? 'Vertex Express' : 'Developer API')
+            + ' ／ ' + (this.getCurrentApiKeyObject()?.name || '未保存のキー');
+        const secureRoute = document.getElementById('secureRoute');
+        if (secureRoute) {
+            secureRoute.hidden = this.modelField() !== 'secureModel';
+            secureRoute.textContent = '会議の送信先：' + destination.textContent + ' ／ ' + this.MODEL_NAME;
+        }
         if (this.modelDisplay) {
             this.modelDisplay.textContent = this.MODEL_NAME;
         }
         if (this.modelSelect) {
+            if (!Array.from(this.modelSelect.options).some(option => option.value === this.MODEL_NAME)) {
+                this.modelSelect.add(new Option(this.MODEL_NAME + '（設定値）', this.MODEL_NAME));
+            }
             this.modelSelect.value = this.MODEL_NAME;
         }
     }
@@ -1965,7 +2034,9 @@ class RecorderApp {
     loadApiKeys() {
         const saved = localStorage.getItem('api_keys');
         if (saved) {
-            return JSON.parse(saved);
+            const keys = JSON.parse(saved);
+            for (const profile of keys) profile.model = migrateModel(profile.model, profile.provider);
+            return keys;
         }
         return [];
     }
@@ -2004,6 +2075,9 @@ class RecorderApp {
         if (this.apiKeySelect) this.apiKeySelect.value = '';
         if (this.apiProviderSelect) this.apiProviderSelect.value = 'developer';
         this.currentApiKeyId = null;
+        this.draftModels = {};
+        this.applyProfileModel();
+        this.fetchAvailableModels();
         this.updateApiProviderHelp();
     }
 
@@ -2014,9 +2088,10 @@ class RecorderApp {
             name: name || 'APIキー',
             key,
             provider,
-            model: model || 'gemini-2.5-flash',
-            rpmLimit: 5,
-            rpdLimit: 20
+            model: this.modelField() === 'model' ? model || DEFAULT_MODEL : this.draftModels.model || DEFAULT_MODEL,
+            secureModel: this.modelField() === 'secureModel' ? model || MEETING_MODEL : this.draftModels.secureModel,
+            rpmLimit: parseInt(this.rpmLimitInput?.value) || 5,
+            rpdLimit: parseInt(this.rpdLimitInput?.value) || 20
         };
         this.apiKeys.push(apiKey);
         this.saveApiKeys();
@@ -2041,7 +2116,7 @@ class RecorderApp {
                 apiKey.name = name;
                 apiKey.key = key;
                 apiKey.provider = this.apiProviderSelect?.value || 'developer';
-                apiKey.model = this.modelSelect?.value ?? 'gemini-2.5-flash';
+                apiKey[this.modelField()] = this.MODEL_NAME;
                 apiKey.rpmLimit = parseInt(this.rpmLimitInput?.value) || 5;
                 apiKey.rpdLimit = parseInt(this.rpdLimitInput?.value) || 20;
             }
@@ -2050,13 +2125,14 @@ class RecorderApp {
             this.addApiKey(
                 name,
                 key,
-                this.modelSelect?.value ?? 'gemini-2.5-flash',
+                this.MODEL_NAME,
                 this.apiProviderSelect?.value || 'developer'
             );
         }
         
         this.saveApiKeys();
         this.updateApiKeySelect();
+        this.selectApiKey(this.currentApiKeyId);
         alert('APIキーを保存しました');
     }
 
@@ -2070,6 +2146,7 @@ class RecorderApp {
             return;
         }
 
+        if (localStorage.getItem('gemini_api_key') === this.getCurrentApiKey()) localStorage.removeItem('gemini_api_key');
         this.apiKeys = this.apiKeys.filter(k => k.id !== this.currentApiKeyId);
         this.saveApiKeys();
         this.updateApiKeySelect();
@@ -2094,11 +2171,10 @@ class RecorderApp {
         if (this.apiKeyNameInput) this.apiKeyNameInput.value = apiKey.name;
         if (this.apiKeySelect) this.apiKeySelect.value = id;
         if (this.apiProviderSelect) this.apiProviderSelect.value = apiKey.provider || 'developer';
-        if (this.modelSelect) this.modelSelect.value = apiKey.model || 'gemini-2.5-flash';
         if (this.rpmLimitInput) this.rpmLimitInput.value = apiKey.rpmLimit || 5;
         if (this.rpdLimitInput) this.rpdLimitInput.value = apiKey.rpdLimit || 20;
         
-        this.MODEL_NAME = apiKey.model || 'gemini-2.5-flash';
+        this.applyProfileModel();
         this.RPM_LIMIT = apiKey.rpmLimit || 5;
         this.RPD_LIMIT = apiKey.rpdLimit || 20;
         
@@ -2136,11 +2212,13 @@ class RecorderApp {
             const apiKey = this.apiKeys.find(k => k.id === this.currentApiKeyId);
             if (apiKey) {
                 apiKey.provider = normalizedProvider;
+                apiKey.model = migrateModel(apiKey.model, normalizedProvider);
                 this.saveApiKeys();
                 this.updateApiKeySelect();
                 this.apiKeySelect.value = this.currentApiKeyId;
             }
         }
+        this.applyProfileModel();
         this.updateApiProviderHelp();
         this.fetchAvailableModels();
     }
@@ -2156,18 +2234,17 @@ class RecorderApp {
         if (fetchButton) {
             fetchButton.textContent = '🔄 最新取得';
             fetchButton.title = isVertex
-                ? 'Vertex Model Gardenからモデルを取得し、Expressでの利用可否を確認します'
+                ? 'Vertex Model Gardenのモデル候補を取得します'
                 : 'Gemini Developer APIから最新モデル一覧を取得します';
         }
     }
 
-    buildGenerateContentUrl(apiKey) {
-        const encodedKey = encodeURIComponent(apiKey);
+    buildGenerateContentUrl() {
         const encodedModel = encodeURIComponent(this.MODEL_NAME);
         if (this.getCurrentApiProvider() === 'vertex-express') {
-            return `https://aiplatform.googleapis.com/v1/publishers/google/models/${encodedModel}:generateContent?key=${encodedKey}`;
+            return `https://aiplatform.googleapis.com/v1/publishers/google/models/${encodedModel}:generateContent`;
         }
-        return `https://generativelanguage.googleapis.com/v1beta/models/${encodedModel}:generateContent?key=${encodedKey}`;
+        return `https://generativelanguage.googleapis.com/v1beta/models/${encodedModel}:generateContent`;
     }
 
     /** 現在選択中のAPIキーオブジェクト（name, model 等）を返す */
@@ -2178,13 +2255,15 @@ class RecorderApp {
         return null;
     }
 
-    /** 有料API利用時は true。このとき無料枠の RPM/RPD 制限は適用しない */
-    isPaidApi() {
-        const apiKey = this.getCurrentApiKeyObject();
-        const name = (apiKey?.name || '').toLowerCase();
-        if (name.includes('有料') || name.includes('paid') || name.includes('pro')) return true;
-        if (this.MODEL_NAME === 'gemini-2.5-pro') return true;
-        return false;
+    modelField() {
+        return document.getElementById('mode-secure').checked ? 'secureModel' : 'model';
+    }
+
+    applyProfileModel() {
+        const profile = this.getCurrentApiKeyObject() || this.draftModels;
+        const field = this.modelField();
+        this.MODEL_NAME = profile[field] || (field === 'secureModel' ? MEETING_MODEL : DEFAULT_MODEL);
+        this.updateModelDisplay();
     }
 
     updateModel(modelName) {
@@ -2195,181 +2274,68 @@ class RecorderApp {
         if (this.currentApiKeyId) {
             const apiKey = this.apiKeys.find(k => k.id === this.currentApiKeyId);
             if (apiKey) {
-                apiKey.model = modelName;
+                apiKey[this.modelField()] = modelName;
                 this.saveApiKeys();
             }
+        } else {
+            this.draftModels[this.modelField()] = modelName;
         }
     }
 
     /**
      * Gemini APIから利用可能なモデル一覧を取得してドロップダウンを更新
      */
-    getVertexExpressModelOptions() {
-        return [
-            { id: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash' },
-            { id: 'gemini-3.1-pro-preview', displayName: 'Gemini 3.1 Pro Preview' },
-            { id: 'gemini-3.1-flash-lite', displayName: 'Gemini 3.1 Flash Lite' },
-            { id: 'gemini-3-flash-preview', displayName: 'Gemini 3 Flash Preview' },
-            { id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro' },
-            { id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash' },
-            { id: 'gemini-2.5-flash-lite', displayName: 'Gemini 2.5 Flash Lite' }
-        ];
-    }
-
-    sortGeminiModels(models) {
-        const score = id => {
-            const version = id.match(/^gemini-(\d+)(?:\.(\d+))?/);
-            const versionScore = version ? (parseInt(version[1]) * 100 + parseInt(version[2] || '0')) : 0;
-            const tierScore = id.includes('pro') ? 3 : id.includes('flash-lite') ? 1 : id.includes('flash') ? 2 : 0;
-            const stableScore = id.includes('preview') ? 0 : 1;
-            return versionScore * 100 + tierScore * 10 + stableScore;
-        };
-        return [...models].sort((a, b) => score(b.id) - score(a.id) || b.id.localeCompare(a.id));
-    }
-
-    async fetchVertexPublisherModels(apiKey) {
-        const url = `https://aiplatform.googleapis.com/v1beta1/publishers/google/models?pageSize=100&listAllVersions=false&key=${encodeURIComponent(apiKey)}`;
-        const response = await fetch(url);
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            throw new Error(data.error?.message || `HTTP ${response.status}`);
-        }
-
-        const modelMap = new Map();
-        (data.publisherModels || []).forEach(model => {
-            const rawName = model.name || '';
-            const id = rawName.split('/').pop()?.split('@')[0] || '';
-            if (!id.startsWith('gemini-')) return;
-            if (/image|embedding|live|tts/i.test(id)) return;
-            modelMap.set(id, {
-                id,
-                displayName: model.displayName || id
-            });
-        });
-
-        // Model Gardenの反映に時間差がある場合に備え、公式の主要モデル候補も統合する。
-        this.getVertexExpressModelOptions().forEach(model => {
-            if (!modelMap.has(model.id)) modelMap.set(model.id, model);
-        });
-        return this.sortGeminiModels([...modelMap.values()]);
-    }
-
-    async verifyVertexExpressModels(apiKey, models) {
-        const results = await Promise.all(models.map(async model => {
-            const url = `https://aiplatform.googleapis.com/v1/publishers/google/models/${encodeURIComponent(model.id)}:countTokens?key=${encodeURIComponent(apiKey)}`;
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ role: 'user', parts: [{ text: 'model availability check' }] }]
-                    })
-                });
-                const data = await response.json().catch(() => ({}));
-                return {
-                    model,
-                    available: response.ok,
-                    status: response.status,
-                    message: data.error?.message || response.statusText || ''
-                };
-            } catch (error) {
-                return { model, available: false, status: 0, message: error.message || String(error) };
-            }
-        }));
-
-        const availableModels = results.filter(result => result.available).map(result => result.model);
-        if (availableModels.length === 0) {
-            const failure = results.find(result => result.message) || results[0];
-            const detail = failure ? `${failure.status || '通信'}: ${failure.message || '利用可能なモデルがありません'}` : '利用可能なモデルがありません';
-            throw new Error(detail);
-        }
-        return { availableModels, unavailableCount: results.length - availableModels.length };
-    }
-
-    async fetchAvailableModels(verifyAvailability = false) {
-        const apiKey = this.getCurrentApiKey();
-        const statusEl = document.getElementById('modelFetchStatus');
-        if (this.getCurrentApiProvider() === 'vertex-express') {
-            const vertexModels = this.getVertexExpressModelOptions();
-            if (!verifyAvailability) {
-                this.updateModelSelectOptions(vertexModels);
-                if (statusEl) statusEl.textContent = 'Vertex主要モデルを表示中。「最新取得」でModel Gardenを確認できます';
-                return;
-            }
-            if (!apiKey) {
-                if (statusEl) statusEl.textContent = '※Vertex APIキーを設定してから利用確認してください';
-                return;
-            }
-            if (statusEl) statusEl.textContent = '⏳ Vertex Model Gardenからモデルを取得中...';
-            try {
-                try {
-                    const publisherModels = await this.fetchVertexPublisherModels(apiKey);
-                    if (publisherModels.length === 0) throw new Error('Geminiモデルが見つかりません');
-                    this.updateModelSelectOptions(publisherModels);
-                    if (statusEl) statusEl.textContent = `✅ Model Gardenから${publisherModels.length}件取得`;
-                    return;
-                } catch (listError) {
-                    console.warn('[fetchVertexPublisherModels] fallback to verification', listError);
-                }
-                const { availableModels, unavailableCount } = await this.verifyVertexExpressModels(apiKey, vertexModels);
-                this.updateModelSelectOptions(availableModels);
-                if (statusEl) {
-                    statusEl.textContent = unavailableCount > 0
-                        ? `✅ 公式候補: ${availableModels.length}件利用可能（${unavailableCount}件対象外）`
-                        : `✅ 公式候補: ${availableModels.length}件すべて利用可能`;
-                }
-            } catch (error) {
-                console.warn('[verifyVertexExpressModels]', error);
-                if (statusEl) statusEl.textContent = `⚠️ Vertexモデル確認失敗: ${error.message}`;
-            }
+    async fetchAvailableModels(refresh = false) {
+        const request = ++this.catalogRequest;
+        const key = this.getCurrentApiKey();
+        const vertex = this.getCurrentApiProvider() === 'vertex-express';
+        const status = document.getElementById('modelFetchStatus');
+        this.updateModelSelectOptions(MODEL_PRESETS);
+        if (!key || (vertex && !refresh)) {
+            status.textContent = key ? '「最新取得」でModel Gardenを確認できます。' : 'APIキーを設定するとモデル一覧を取得できます。';
             return;
         }
-        if (!apiKey) {
-            if (statusEl) statusEl.textContent = '※APIキーを設定するとモデル一覧を自動取得します';
-            return;
-        }
-        if (statusEl) statusEl.textContent = '⏳ モデル一覧を取得中...';
+        status.textContent = 'モデル一覧を取得中…';
+        const endpoint = vertex
+            ? 'https://aiplatform.googleapis.com/v1beta1/publishers/google/models'
+            : 'https://generativelanguage.googleapis.com/v1beta/models';
+        const models = new Map();
+        const seenTokens = new Set();
+        let token = '';
         try {
-            const res = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=50`
-            );
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-
-            const models = (data.models || [])
-                .filter(m =>
-                    m.name &&
-                    m.name.includes('gemini') &&
-                    (m.supportedGenerationMethods || []).includes('generateContent') &&
-                    !m.name.includes('embedding') &&
-                    !m.name.includes('aqa') &&
-                    !m.name.includes('imagen')
-                )
-                .map(m => ({
-                    id: m.name.replace('models/', ''),
-                    displayName: m.displayName || m.name.replace('models/', '')
-                }))
-                .sort((a, b) => {
-                    // pro > flash > flash-lite、バージョン番号降順
-                    const tier = id => id.includes('pro') ? 3 : id.includes('flash-lite') || id.includes('flash_lite') ? 1 : id.includes('flash') ? 2 : 0;
-                    const td = tier(b.id) - tier(a.id);
-                    if (td !== 0) return td;
-                    return b.id.localeCompare(a.id);
-                });
-
-            if (models.length === 0) throw new Error('利用可能なモデルが見つかりません');
-
-            this.updateModelSelectOptions(models);
-            if (statusEl) statusEl.textContent = `✅ ${models.length}件のモデルを取得（${new Date().toLocaleTimeString()}）`;
-        } catch (e) {
-            console.warn('[fetchAvailableModels]', e);
-            if (statusEl) statusEl.textContent = `⚠️ モデル取得失敗: ${e.message}`;
+            do {
+                const url = new URL(endpoint);
+                url.searchParams.set('pageSize', '100');
+                if (vertex) url.searchParams.set('listAllVersions', 'false');
+                if (token) url.searchParams.set('pageToken', token);
+                const response = await fetch(url, { headers: { 'x-goog-api-key': key } });
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                const data = await response.json();
+                if (request !== this.catalogRequest) return;
+                for (const entry of (vertex ? data.publisherModels : data.models) || []) {
+                    const id = (entry.name || '').split('/').pop().split('@')[0];
+                    if (!/^gemini-\d+(?:\.\d+)?-(?:flash(?:-lite)?|pro|argon)(?:-(?:preview|exp))?(?:-\d+)*$/.test(id)) continue;
+                    if (migrateModel(id, vertex ? 'vertex-express' : 'developer') !== id) continue;
+                    if (!vertex && !entry.supportedGenerationMethods?.includes('generateContent')) continue;
+                    models.set(id, { id, displayName: entry.displayName || id });
+                }
+                token = data.nextPageToken;
+                if (token && seenTokens.has(token)) throw new Error('ページ情報が重複しています');
+                seenTokens.add(token);
+            } while (token);
+            if (!models.size) throw new Error('対応するモデル候補がありません');
+            const options = [...models.values()].sort((a, b) => b.id.localeCompare(a.id, 'en', { numeric: true }));
+            this.updateModelSelectOptions(options);
+            status.textContent = models.has(this.MODEL_NAME)
+                ? (vertex ? 'Model Gardenの候補' : '生成対応モデル') + '：' + models.size + '件'
+                : '選択中のモデルは一覧にありません。送信前に設定を確認してください。';
+        } catch (error) {
+            if (request === this.catalogRequest) status.textContent = '一覧取得失敗（' + error.message + '）。保存済みモデルと標準候補を表示しています。';
         }
     }
 
     updateModelSelectOptions(models) {
         if (!this.modelSelect) return;
-        const currentValue = this.MODEL_NAME;
         this.modelSelect.innerHTML = '';
         models.forEach(m => {
             const opt = document.createElement('option');
@@ -2377,15 +2343,7 @@ class RecorderApp {
             opt.textContent = m.displayName;
             this.modelSelect.appendChild(opt);
         });
-        // 現在のモデルが存在すれば維持、なければflash系を優先選択
-        if (models.find(m => m.id === currentValue)) {
-            this.modelSelect.value = currentValue;
-        } else {
-            const flash = models.find(m => m.id.includes('flash') && !m.id.includes('lite'));
-            const fallback = flash || models[0];
-            this.modelSelect.value = fallback.id;
-            this.updateModel(fallback.id);
-        }
+        this.updateModelDisplay();
     }
 
     handleModeChange() {
@@ -2394,24 +2352,18 @@ class RecorderApp {
         const medicalNotice = document.getElementById('medicalModeNotice');
         if (medicalNotice) medicalNotice.style.display = selectedMode === 'medical' ? 'block' : 'none';
 
-        if (selectedMode === 'secure') {
-            // 秘匿性の高い会議モード: 自動的に有料APIとgemini-2.5-proを選択
-            // 有料APIキーを探す（名前に「有料」「paid」「pro」などが含まれる）
-            const paidApiKey = this.apiKeys.find(k => 
-                k.name.toLowerCase().includes('有料') || 
-                k.name.toLowerCase().includes('paid') || 
-                k.name.toLowerCase().includes('pro')
-            );
-            
-            if (paidApiKey) {
-                this.selectApiKey(paidApiKey.id);
-            }
-            
-            // モデルをgemini-2.5-proに変更
-            if (this.modelSelect.value !== 'gemini-2.5-pro') {
-                this.updateModel('gemini-2.5-pro');
-            }
+        if (selectedMode === 'secure' && this.lastRecordingMode !== 'secure') {
+            this.previousProfileId = this.currentApiKeyId;
+            const preferred = localStorage.getItem('voice_rec_secure_profile');
+            const profile = this.apiKeys.find(item => item.id === preferred)
+                || this.apiKeys.find(item => /有料|paid|pro/i.test(item.name));
+            if (profile && profile.id !== this.currentApiKeyId) this.selectApiKey(profile.id);
+        } else if (selectedMode !== 'secure' && this.lastRecordingMode === 'secure') {
+            this.selectApiKey(this.previousProfileId);
         }
+        this.lastRecordingMode = selectedMode;
+
+        this.applyProfileModel();
     }
 
     /**
@@ -2504,7 +2456,7 @@ ${SRC}の内容が医療・診療・症例検討に関連する場合は、参�
 - [該当する場合は記載。該当なしの場合は「該当なし」と記載]${isText ? '' : `
 
 ---
-(音声が途中から始まっている場合は文脈を補完して記録してください)`}`,
+(録音開始前の経緯は推測せず、聞き取れた発言だけを記録してください)`}`,
             medical: `あなたは熟練した医療クラークです。医師から患者本人・家族への病状説明（インフォームド・コンセント）の記録を分析し、電子カルテにそのまま転記できる「詳細かつ網羅的な記録」を日本語で作成してください。
 
 # 記録の原則
@@ -2639,10 +2591,9 @@ KEYWORDS: keyword1, keyword2`
     }
 
     /**
-     * Check if rate limit is exceeded（有料APIの場合は制限なし）
+     * Check if rate limit is exceeded
      */
     checkRateLimit() {
-        if (this.isPaidApi()) return true;
         const now = Date.now();
         
         // Check RPM
@@ -2677,10 +2628,9 @@ KEYWORDS: keyword1, keyword2`
     }
 
     /**
-     * Increment rate limit counters（有料APIの場合はカウントしない）
+     * Increment rate limit counters
      */
     incrementRateLimit() {
-        if (this.isPaidApi()) return;
         this.rpmCount++;
         this.rpdCount++;
         this.saveRateLimitCounts();
@@ -2752,16 +2702,6 @@ KEYWORDS: keyword1, keyword2`
      */
     updateRateLimitDisplay() {
         if (!this.rateLimitPanel) return;
-        if (this.isPaidApi()) {
-            if (this.rpmCountDisplay) this.rpmCountDisplay.textContent = '制限なし';
-            if (this.rpdCountDisplay) this.rpdCountDisplay.textContent = '制限なし';
-            if (this.rpmProgressBar) this.rpmProgressBar.style.width = '0%';
-            if (this.rpdProgressBar) this.rpdProgressBar.style.width = '0%';
-            this.rateLimitPanel.className = 'rate-limit-panel';
-            this.rateLimitPanel.style.display = 'block';
-            return;
-        }
-
         // Update counts
         this.rpmCountDisplay.textContent = `${this.rpmCount}/${this.RPM_LIMIT}`;
         this.rpdCountDisplay.textContent = `${this.rpdCount}/${this.RPD_LIMIT}`;
@@ -2807,19 +2747,13 @@ KEYWORDS: keyword1, keyword2`
     }
 
     /**
-     * Start rate limit countdown timer（有料APIの場合はタイマー不要）
+     * Start rate limit countdown timer
      */
     startRateLimitCountdown() {
         if (this.rateLimitInterval) {
             clearInterval(this.rateLimitInterval);
             this.rateLimitInterval = null;
         }
-        if (this.isPaidApi()) {
-            if (this.rpmCountdownTime) this.rpmCountdownTime.textContent = '—';
-            if (this.rpdCountdownTime) this.rpdCountdownTime.textContent = '—';
-            return;
-        }
-
         this.rateLimitInterval = setInterval(() => {
             const now = Date.now();
             
@@ -2887,12 +2821,12 @@ KEYWORDS: keyword1, keyword2`
     async saveAudioToIndexedDB(logId, blob, mimeType) {
         if (!indexedDB || !blob) {
             console.warn('[IndexedDB] save skipped: indexedDB or blob missing');
-            return;
+            return false;
         }
         await this.initAudioDB();
         if (!this.audioDB) {
             console.warn('[IndexedDB] save skipped: DB not available');
-            return;
+            return false;
         }
         let arrayBuffer;
         try {
@@ -2904,7 +2838,7 @@ KEYWORDS: keyword1, keyword2`
             });
         } catch (e) {
             console.warn('[IndexedDB] blob read error:', e);
-            return;
+            return false;
         }
         return new Promise((resolve) => {
             const tx = this.audioDB.transaction(this.AUDIO_STORE_NAME, 'readwrite');
@@ -2912,11 +2846,11 @@ KEYWORDS: keyword1, keyword2`
             store.put({ logId, arrayBuffer, mimeType: mimeType || this.recordingMimeType });
             tx.oncomplete = () => {
                 console.log('[IndexedDB] saved:', logId, `(${(blob.size / 1024).toFixed(1)}KB)`);
-                resolve();
+                resolve(true);
             };
-            tx.onerror = () => {
+            tx.onabort = tx.onerror = () => {
                 console.warn('[IndexedDB] save error:', tx.error);
-                resolve();
+                resolve(false);
             };
         });
     }
@@ -2974,12 +2908,13 @@ KEYWORDS: keyword1, keyword2`
      * 音声をGemini APIに送信し、要約テキストを返す（内部用）
      */
     async executeAudioApiCall(blob, mimeType) {
-        this.checkRateLimit();
-        const base64Audio = await this.blobToBase64(blob);
+        if (document.getElementById('mode-medical').checked) throw new Error('病状説明モードはテキスト専用です。');
+        if (!blob.size) throw new Error('録音データが空です。');
         const apiKey = this.getCurrentApiKey();
         if (!apiKey) throw new Error('APIキーが設定されていません');
-        const url = this.buildGenerateContentUrl(apiKey);
+        const url = this.buildGenerateContentUrl();
         const promptText = this.getPromptTemplate('audio');
+        const base64Audio = await this.blobToBase64(blob);
         const payload = {
             contents: [{
                 role: 'user',
@@ -2989,13 +2924,15 @@ KEYWORDS: keyword1, keyword2`
                 ]
             }]
         };
+        this.checkRateLimit();
+        this.incrementRateLimit();
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
         let response;
         try {
             response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
                 body: JSON.stringify(payload),
                 signal: controller.signal
             });
@@ -3008,9 +2945,8 @@ KEYWORDS: keyword1, keyword2`
         const data = await response.json().catch(() => ({}));
         if (data.error) throw new Error(data.error.message || String(data.error));
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${data.error?.message || response.statusText || 'Unknown error'}`);
-        this.incrementRateLimit();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error(data.error?.message || 'API応答の形式が不正です');
+        const text = data.candidates?.[0]?.content?.parts?.filter(part => !part.thought && typeof part.text === 'string').map(part => part.text).join('');
+        if (!text) throw new Error(data.error?.message || '本文を取得できませんでした');
         return text;
     }
 
@@ -3018,10 +2954,9 @@ KEYWORDS: keyword1, keyword2`
      * テキストをGemini APIに送信し、整理されたテキストを返す
      */
     async executeTextApiCall(inputText) {
-        this.checkRateLimit();
         const apiKey = this.getCurrentApiKey();
         if (!apiKey) throw new Error('APIキーが設定されていません');
-        const url = this.buildGenerateContentUrl(apiKey);
+        const url = this.buildGenerateContentUrl();
         // テキスト専用プロンプトを直接生成（音声前提の文言・後付け上書きが不要になり入力トークン削減）
         const promptText = this.getPromptTemplate('text');
         const payload = {
@@ -3032,13 +2967,15 @@ KEYWORDS: keyword1, keyword2`
                 ]
             }]
         };
+        this.checkRateLimit();
+        this.incrementRateLimit();
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
         let response;
         try {
             response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
                 body: JSON.stringify(payload),
                 signal: controller.signal
             });
@@ -3051,9 +2988,8 @@ KEYWORDS: keyword1, keyword2`
         const data = await response.json().catch(() => ({}));
         if (data.error) throw new Error(data.error.message || String(data.error));
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${data.error?.message || response.statusText || 'Unknown error'}`);
-        this.incrementRateLimit();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error(data.error?.message || 'API応答の形式が不正です');
+        const text = data.candidates?.[0]?.content?.parts?.filter(part => !part.thought && typeof part.text === 'string').map(part => part.text).join('');
+        if (!text) throw new Error(data.error?.message || '本文を取得できませんでした');
         return text;
     }
 
@@ -3062,7 +2998,7 @@ KEYWORDS: keyword1, keyword2`
      */
     async processTextInput(inputText) {
         const segmentId = this.segmentCounter;
-        const logId = `log-${segmentId}`;
+        const logId = 'log-' + Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16).padStart(8, '0')).join('');
         const timestamp = new Date().toLocaleTimeString();
 
         const logHtml = `
@@ -3093,11 +3029,13 @@ KEYWORDS: keyword1, keyword2`
             const actionsDiv = document.querySelector(`#${logId} .log-actions`);
             if (actionsDiv) actionsDiv.style.display = 'flex';
             this.attachPubMedLink(logId, keywords);
+            return true;
         } catch (err) {
             contentDiv.classList.remove('loading');
             contentDiv.classList.add('error');
             contentDiv.textContent = `エラーが発生しました: ${err.message}`;
             console.error('[processTextInput]', err);
+            return false;
         }
     }
 
@@ -3109,7 +3047,7 @@ KEYWORDS: keyword1, keyword2`
      */
     async processAudioSegment(blob, segmentId, mimeTypeOverride) {
         // Create UI Log Entry
-        const logId = `log-${segmentId}`;
+        const logId = 'log-' + Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16).padStart(8, '0')).join('');
         const timestamp = new Date().toLocaleTimeString();
         
         const logHtml = `
@@ -3133,12 +3071,14 @@ KEYWORDS: keyword1, keyword2`
         const contentDiv = document.querySelector(`#${logId} .log-content`);
         const mimeType = mimeTypeOverride || this.recordingMimeType || 'audio/webm';
 
+        let backupSaved = false;
         // IndexedDB保存とAPI呼び出しを並列実行（要約までの待ち時間を短縮）
         try {
-            const [, apiResult] = await Promise.allSettled([
+            const [backup, apiResult] = await Promise.allSettled([
                 this.saveAudioToIndexedDB(logId, blob, mimeType),
                 this.executeAudioApiCall(blob, mimeType)
             ]);
+            backupSaved = backup.status === 'fulfilled' && backup.value === true;
             if (apiResult.status === 'rejected') throw apiResult.reason;
             const markdown = apiResult.value;
             const { displayMarkdown, keywords } = this.parseKeywordsFromMarkdown(markdown);
@@ -3167,13 +3107,61 @@ KEYWORDS: keyword1, keyword2`
             console.error('[processAudioSegment]', err);
             // エラー時: 再送信ボタンを表示（音声はIndexedDBに保持済み）
             const retryDiv = document.querySelector(`#${logId} .log-retry-actions`);
-            if (retryDiv) retryDiv.style.display = 'flex';
+            if (retryDiv) {
+                retryDiv.style.display = 'flex';
+                retryDiv.querySelector('.retry').hidden = !backupSaved;
+                const link = document.createElement('a');
+                link.textContent = '録音を保存';
+                link.download = this.audioFilename(logId, mimeType);
+                link.href = URL.createObjectURL(blob);
+                retryDiv.appendChild(link);
+                if (!backupSaved) contentDiv.append(' 端末への一時保存に失敗しました。この画面から録音を保存できます。');
+            }
         }
     }
 
     /**
      * 失敗したセグメントの音声をIndexedDBから取得して再送信
      */
+    audioFilename(id, mimeType) {
+        const ext = (mimeType || '').split(';')[0].split('/').pop();
+        return id + '.' + (/^[a-z0-9]+$/i.test(ext) ? ext : 'audio');
+    }
+
+    async listPendingAudio() {
+        const panel = document.getElementById('pendingAudio');
+        panel.replaceChildren();
+        await this.initAudioDB();
+        if (!this.audioDB) { panel.textContent = 'この端末の一時保存を開けません。'; return; }
+        try {
+            const keys = await new Promise((resolve, reject) => {
+                const query = this.audioDB.transaction(this.AUDIO_STORE_NAME).objectStore(this.AUDIO_STORE_NAME).getAllKeys();
+                query.onsuccess = () => resolve(query.result);
+                query.onerror = () => reject(query.error);
+            });
+            panel.textContent = keys.length ? '' : '保存されている録音はありません。';
+            for (const key of keys) {
+                const row = document.createElement('div');
+                const download = document.createElement('button');
+                download.type = 'button';
+                download.textContent = '録音を保存 ' + key;
+                download.onclick = async () => {
+                    const item = await this.getAudioFromIndexedDB(key);
+                    if (!item) { row.textContent = '音声データが見つかりません。'; return; }
+                    const a = document.createElement('a');
+                    a.download = this.audioFilename(key, item.mimeType);
+                    a.href = URL.createObjectURL(item.blob);
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+                };
+                row.appendChild(download);
+                panel.appendChild(row);
+            }
+        } catch { panel.textContent = '保存されている録音を読み込めませんでした。'; }
+    }
+
     async retryAudioSegment(logId) {
         const contentDiv = document.querySelector(`#${logId} .log-content`);
         const retryDiv = document.querySelector(`#${logId} .log-retry-actions`);
@@ -3182,10 +3170,14 @@ KEYWORDS: keyword1, keyword2`
             return;
         }
 
+        const retryBtn = retryDiv.querySelector('.retry');
+        if (retryBtn.disabled) return;
+        retryBtn.disabled = true;
         console.log('[retry] fetching audio for:', logId);
         const stored = await this.getAudioFromIndexedDB(logId);
         if (!stored) {
             contentDiv.textContent = '音声データが見つかりません。録音し直してください。';
+            retryBtn.disabled = false;
             console.warn('[retry] audio not found in IndexedDB');
             return;
         }
@@ -3195,8 +3187,7 @@ KEYWORDS: keyword1, keyword2`
         contentDiv.classList.add('loading');
         contentDiv.textContent = '再送信中...';
         retryDiv.style.display = 'none';
-        const retryBtn = retryDiv.querySelector('.retry');
-        if (retryBtn) retryBtn.disabled = true;
+
 
         try {
             const markdown = await this.executeAudioApiCall(stored.blob, stored.mimeType);
@@ -3209,6 +3200,8 @@ KEYWORDS: keyword1, keyword2`
             if (actionsDiv) actionsDiv.style.display = 'flex';
             this.attachPubMedLink(logId, keywords);
             await this.deleteAudioFromIndexedDB(logId);
+            const download = retryDiv.querySelector('a[download]');
+            if (download) { URL.revokeObjectURL(download.href); download.remove(); }
         } catch (e) {
             contentDiv.classList.remove('loading');
             contentDiv.classList.add('error');
@@ -3233,6 +3226,7 @@ KEYWORDS: keyword1, keyword2`
             const sampleRate = audioBuffer.sampleRate;
             const channelData = audioBuffer.getChannelData(0);
             const len = channelData.length * numChannels;
+            if (44 + len * 2 > 18 * 1024 * 1024 || numChannels > 2) return null;
             const buffer = new ArrayBuffer(44 + len * 2);
             const view = new DataView(buffer);
             const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
@@ -3286,7 +3280,7 @@ KEYWORDS: keyword1, keyword2`
 
     // Helper: Very simple Markdown to HTML for display
     simpleMarkdownParse(text) {
-        return text
+        return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
             .replace(/^# (.*$)/gim, '<strong>$1</strong>')
             .replace(/^## (.*$)/gim, '<strong>$1</strong>')
             .replace(/^\* (.*$)/gim, '• $1')
@@ -3443,7 +3437,7 @@ KEYWORDS: keyword1, keyword2`
         logEntries.forEach(entry => {
             const header = entry.querySelector('.log-header');
             const contentDiv = entry.querySelector('.log-content');
-            if (!contentDiv || !header || contentDiv.classList.contains('loading')) return;
+            if (!contentDiv || !header || !contentDiv.dataset.rawMarkdown) return;
             const segmentMatch = header.textContent.match(/(?:セグメント|テキスト入力) #(\d+)/);
             const timeMatch = header.textContent.match(/(\d{1,2}:\d{2}:\d{2})/);
             if (segmentMatch && timeMatch) {
@@ -3565,15 +3559,17 @@ KEYWORDS: keyword1, keyword2`
 // アプリ更新: キャッシュ削除・SW解除・リロード
 async function forceAppUpdate() {
     const btn = document.getElementById('btnAppUpdate');
+    if (app?.isRecording || app?.btnMic.disabled || document.querySelector('.log-content.loading')) {
+        alert('録音または要約が完了してから更新してください。');
+        return;
+    }
+    if (document.querySelector('.log-entry') && !confirm('更新すると画面の要約と再送信ボタンが消えます。必要な内容を保存しましたか？')) return;
     if (btn) btn.disabled = true;
     try {
         if ('serviceWorker' in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (const reg of registrations) await reg.unregister();
-        }
-        if ('caches' in window) {
-            const names = await caches.keys();
-            for (const name of names) await caches.delete(name);
+            const scope = new URL('./', location.href).href;
+            const registration = await navigator.serviceWorker.getRegistration(scope);
+            if (registration?.scope === scope) await registration.update();
         }
         window.location.replace(window.location.pathname + '?t=' + Date.now());
     } catch (err) {
