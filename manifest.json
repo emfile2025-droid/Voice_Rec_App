@@ -1,10 +1,10 @@
 {
-  "name": "Gemini AI Recorder",
-  "short_name": "AI Memo",
+  "name": "VoiceREC 文字起こし編集",
+  "short_name": "VoiceREC",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#007bff",
+  "background_color": "#f6f5ef",
+  "theme_color": "#155747",
   "icons": [
     {
       "src": "icon-192.png",
