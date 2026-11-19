@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>VoiceREC｜病状説明記録 ver.1.4.0</title>
+    <title>VoiceREC｜病状説明記録 ver.1.4.1</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23007bff' width='100' height='100' rx='20'/><text x='50%' y='50%' font-size='60' fill='white' text-anchor='middle' dominant-baseline='central'>🎙️</text></svg>">
     <meta name="theme-color" content="#007bff">
@@ -1112,7 +1112,7 @@
 
 <main id="clinical">
     <header class="clinical-bar"><div class="clinical-width">
-        <div class="clinical-brand"><span class="voice-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>VoiceREC</div>
+        <div class="clinical-brand"><span class="voice-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>VoiceREC <small id="appVersion" style="font-size:12px;letter-spacing:0;white-space:nowrap">v1.4.1</small></div>
         <button type="button" id="clinicalOther">その他の機能</button>
     </div></header>
     <div class="clinical-width clinical-work">
@@ -1140,6 +1140,12 @@
         <section class="clinical-send" aria-label="AIへの送信">
             <div><label for="clinicalProfile">送信先・APIキー</label><select id="clinicalProfile"></select></div>
             <div><label for="clinicalModel">使用モデル</label><select id="clinicalModel"></select></div>
+            <div class="clinical-send-help" id="clinicalModelTools" hidden>
+                <button type="button" id="clinicalRefreshModels">最新取得</button>
+                <button type="button" id="clinicalTestModel" disabled>接続テスト（固定短文・従量課金）</button>
+                <span id="clinicalModelStatus" role="status"></span>
+                <details id="clinicalModelDetails" hidden><summary>利用不可・未確認の候補</summary><pre id="clinicalModelReport" style="white-space:pre-wrap"></pre></details>
+            </div>
             <button type="button" id="clinicalGenerate" class="clinical-primary" disabled>病状説明記録を作成</button>
             <div class="clinical-send-help"><button type="button" class="clinical-link" id="clinicalSettings">APIキーを管理</button><span>作成時に、編集欄の原文を選択した接続先へ送信します。</span></div>
         </section>
@@ -1395,6 +1401,53 @@ const MODEL_PRESETS = [
     { id: MEETING_MODEL, displayName: 'Gemini 3.8 Flash' }
 ];
 
+const VERTEX_ORIGIN = 'https://aiplatform.googleapis.com';
+const MODEL_PROBE_CONCURRENCY = 4;
+
+async function verifyExpressCatalog(key, { current = () => true, extra = [] } = {}) {
+    const models = new Map(MODEL_PRESETS.concat(extra).map(model => [model.id, model]));
+    let source = '既知の候補';
+    try {
+        const seen = new Set();
+        let token;
+        for (let page = 0; page < 5 && current(); page++) {
+            const url = new URL(VERTEX_ORIGIN + '/v1beta1/publishers/google/models');
+            url.searchParams.set('pageSize', '100');
+            url.searchParams.set('listAllVersions', 'false');
+            if (token) url.searchParams.set('pageToken', token);
+            const r = await fetch(url, { headers: { 'x-goog-api-key': key }, signal: AbortSignal.timeout(8000) });
+            if (!r.ok) break;
+            const data = await r.json();
+            for (const item of data.publisherModels || []) {
+                const id = item.name?.split('/').pop().split('@')[0];
+                if (!/^gemini-\d+(?:\.\d+)?-(?:flash(?:-lite)?|pro|argon|hydrogen|carbon|neon)(?:-(?:preview|exp))?(?:-\d+)*$/.test(id)) continue;
+                if (migrateModel(id, 'vertex-express') === id) models.set(id, { id, displayName: item.displayName || id });
+            }
+            token = data.nextPageToken;
+            if (!token) { source = 'Model Garden＋既知の候補'; break; }
+            if (seen.has(token)) break;
+            seen.add(token);
+        }
+    } catch { /* Model Garden is optional; the known candidates still get probed. */ }
+    const candidates = [...models.values()].sort((a,b) => b.id.localeCompare(a.id, 'en', { numeric: true }));
+    const results = [];
+    for (let i = 0; i < candidates.length && current(); i += MODEL_PROBE_CONCURRENCY) {
+        const batch = candidates.slice(i, i + MODEL_PROBE_CONCURRENCY);
+        results.push(...await Promise.all(batch.map(async model => {
+            try {
+                const r = await fetch(VERTEX_ORIGIN + '/v1/publishers/google/models/' + encodeURIComponent(model.id) + ':countTokens', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+                    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'model availability check' }] }] }),
+                    signal: AbortSignal.timeout(8000)
+                });
+                if (r.ok && Number.isFinite((await r.json()).totalTokens)) return { model, state: 'verified' };
+                return { model, state: [403, 404].includes(r.status) ? 'unavailable' : 'unknown', status: r.status };
+            } catch { return { model, state: 'unknown' }; }
+        })));
+    }
+    return { source, results };
+}
+
 function migrateModel(id, provider) {
     if (id === 'gemini-2.5-pro') return MEETING_MODEL;
     if (!id || id === 'gemini-2.5-flash' ||
@@ -1407,6 +1460,7 @@ class RecorderApp {
         // Configuration
         this.MODEL_NAME = DEFAULT_MODEL;
         this.catalogRequest = 0;
+        this.expressLegacy = null;
         this.draftModels = {};
         this.SEGMENT_LIMIT_MS = 15 * 60 * 1000; // 15 minutes (Safe margin for 20MB limit)
         // this.SEGMENT_LIMIT_MS = 1 * 60 * 1000; // Debug: 1 minute
@@ -2130,6 +2184,11 @@ class RecorderApp {
             this.modelDisplay.textContent = this.MODEL_NAME;
         }
         if (this.modelSelect) {
+            if (this.getCurrentApiProvider() === 'vertex-express' &&
+                !Array.from(this.modelSelect.options).some(option => option.value === this.MODEL_NAME)) {
+                this.modelSelect.value = '';
+                return;
+            }
             if (!Array.from(this.modelSelect.options).some(option => option.value === this.MODEL_NAME)) {
                 this.modelSelect.add(new Option(this.MODEL_NAME + '（設定値）', this.MODEL_NAME));
             }
@@ -2399,8 +2458,30 @@ class RecorderApp {
         const key = this.getCurrentApiKey();
         const vertex = this.getCurrentApiProvider() === 'vertex-express';
         const status = document.getElementById('modelFetchStatus');
+        if (vertex) {
+            this.expressLegacy = null;
+            this.updateModelSelectOptions([]);
+            if (!key || !refresh) {
+                status.textContent = key ? '「最新取得」でこの接続先のモデルを確認してください。' : 'APIキーを設定してください。';
+                return;
+            }
+            const profileId = this.currentApiKeyId;
+            const current = () => request === this.catalogRequest && key === this.getCurrentApiKey() &&
+                profileId === this.currentApiKeyId && this.getCurrentApiProvider() === 'vertex-express';
+            status.textContent = 'Vertexモデルを確認中…';
+            const { results } = await verifyExpressCatalog(key, { current });
+            if (!current()) return;
+            const models = results.filter(item => item.state === 'verified').map(item => item.model);
+            this.expressLegacy = { key, profileId, ids: new Set(models.map(item => item.id)) };
+            this.updateModelSelectOptions(models);
+            const unavailable = results.filter(item => item.state === 'unavailable').length;
+            const unknown = results.filter(item => item.state === 'unknown').length;
+            status.textContent = `トークン計測確認 ${models.length}件／利用不可 ${unavailable}件／未確認 ${unknown}件`;
+            status.title = status.textContent;
+            return;
+        }
         this.updateModelSelectOptions(MODEL_PRESETS);
-        if (!key || (vertex && !refresh)) {
+        if (!key) {
             status.textContent = key ? '「最新取得」でModel Gardenを確認できます。' : 'APIキーを設定するとモデル一覧を取得できます。';
             return;
         }
@@ -2443,9 +2524,23 @@ class RecorderApp {
         }
     }
 
+    requireLegacyVertexModel() {
+        if (this.getCurrentApiProvider() !== 'vertex-express') return;
+        if (this.expressLegacy?.key !== this.getCurrentApiKey() ||
+            this.expressLegacy?.profileId !== this.currentApiKeyId ||
+            !this.expressLegacy?.ids.has(this.MODEL_NAME) || this.modelSelect?.value !== this.MODEL_NAME) {
+            throw new Error('設定の「最新取得」でモデルを確認して選択してください。本文・音声は送信していません。');
+        }
+    }
+
     updateModelSelectOptions(models) {
         if (!this.modelSelect) return;
         this.modelSelect.innerHTML = '';
+        if (this.getCurrentApiProvider() === 'vertex-express') {
+            const placeholder = new Option(models.length ? '確認済みのモデルを選択' : '「最新取得」でモデルを確認', '');
+            placeholder.disabled = true;
+            this.modelSelect.add(placeholder);
+        }
         models.forEach(m => {
             const opt = document.createElement('option');
             opt.value = m.id;
@@ -3017,6 +3112,7 @@ KEYWORDS: keyword1, keyword2`
      * 音声をGemini APIに送信し、要約テキストを返す（内部用）
      */
     async executeAudioApiCall(blob, mimeType) {
+        this.requireLegacyVertexModel();
         if (document.getElementById('mode-medical').checked) throw new Error('病状説明モードはテキスト専用です。');
         if (!blob.size) throw new Error('録音データが空です。');
         const apiKey = this.getCurrentApiKey();
@@ -3063,6 +3159,10 @@ KEYWORDS: keyword1, keyword2`
      * テキストをGemini APIに送信し、整理されたテキストを返す
      */
     async executeTextApiCall(inputText, clinical) {
+        if (!clinical) this.requireLegacyVertexModel();
+        if (clinical?.profile.provider === 'vertex-express' && !clinical.canSend?.()) {
+            throw new Error('この接続先でモデルを確認してから送信してください。');
+        }
         const apiKey = clinical ? clinical.profile.key : this.getCurrentApiKey();
         if (!apiKey) throw new Error('APIキーが設定されていません');
         const url = clinical ? this.buildGenerateContentUrl(clinical.model, clinical.profile.provider || 'developer') : this.buildGenerateContentUrl();
@@ -3730,6 +3830,16 @@ class ClinicalEditor {
         this.open = byId('Open');
         this.settings = byId('Settings');
         this.other = byId('Other');
+        for (const name of ['ModelTools', 'RefreshModels', 'TestModel', 'ModelStatus', 'ModelDetails', 'ModelReport']) {
+            this[name] = byId(name);
+        }
+        this.modelRequest = 0;
+        this.testRequest = 0;
+        this.checkedModels = null;
+        this.checkingModels = false;
+        this.testingModel = false;
+        this.RefreshModels.addEventListener('click', () => this.refreshVertexModels());
+        this.TestModel.addEventListener('click', () => this.testVertexModel());
         this.revision = 0;
         this.request = null;
         this.loadingFile = false;
@@ -3737,18 +3847,23 @@ class ClinicalEditor {
         this.noteEdited = false;
         this.truncated = false;
         for (const entry of MODEL_PRESETS) {
-            this.model.add(new Option(entry.displayName, entry.id));
+
             const rate = clinicalRates(entry.id, new Date());
             const row = byId('Prices').insertRow();
             row.insertCell().textContent = entry.displayName;
             row.insertCell().textContent = '約' + ((rate.input * 50000 + rate.output * 5000) * 160 / 1e6).toFixed(2) + '円';
         }
-        const savedModel = localStorage.getItem('voice_rec_clinical_model');
-        this.model.value = MODEL_PRESETS.some(m => m.id === savedModel) ? savedModel : CLINICAL_MODEL;
-        this.model.addEventListener('change', () => localStorage.setItem('voice_rec_clinical_model', this.model.value));
+        this.model.addEventListener('change', () => {
+            if (!this.model.value) return;
+            localStorage.setItem('voice_rec_clinical_model', this.model.value);
+            this.testRequest++;
+            this.testingModel = false;
+            if (this.activeProfile()?.provider === 'vertex-express') this.ModelStatus.textContent = 'トークン計測確認済み。必要に応じて接続テストを実行できます。';
+            this.updateControls();
+        });
         this.profile.addEventListener('change', () => {
             localStorage.setItem('voice_rec_clinical_profile', this.profile.value);
-            this.updateControls();
+            this.syncModelOptions();
         });
         this.source.addEventListener('input', () => { this.copied = false; this.updateControls(); });
         this.note.addEventListener('input', () => { this.copied = false; this.noteEdited = true; this.updateControls(); });
@@ -3788,8 +3903,120 @@ class ClinicalEditor {
         }
         this.profile.value = (saved === null && keys.length === 1) ? keys[0].id : saved || '';
         if (!this.profile.value) this.profile.value = '';
-        this.updateControls();
+        this.syncModelOptions();
         window.scrollTo(0, 0);
+    }
+
+    activeProfile() {
+        return this.recorder.apiKeys.find(p => p.id === this.profile.value);
+    }
+
+    sameProfile(snapshot) {
+        const active = this.activeProfile();
+        return Boolean(active && snapshot && active.id === snapshot.id &&
+            active.provider === snapshot.provider && active.key === snapshot.key);
+    }
+
+    modelVerified(profile, model) {
+        return profile?.provider !== 'vertex-express' ||
+            Boolean(this.sameProfile(this.checkedModels?.profile) && this.sameProfile(profile) &&
+                this.checkedModels.ids.has(model));
+    }
+
+    renderClinicalModels(models, strict) {
+        const saved = localStorage.getItem('voice_rec_clinical_model');
+        const choices = models.map(m => new Option(m.displayName, m.id));
+        if (strict) {
+            const placeholder = new Option(models.length ? '確認済みのモデルを選択' : '「最新取得」でモデルを確認', '');
+            placeholder.disabled = true;
+            this.model.replaceChildren(placeholder, ...choices);
+        } else {
+            this.model.replaceChildren(...choices);
+        }
+        this.model.value = models.some(m => m.id === saved) ? saved : (strict ? '' : CLINICAL_MODEL);
+    }
+
+    syncModelOptions() {
+        const profile = this.activeProfile();
+        const vertex = profile?.provider === 'vertex-express';
+        this.modelRequest++;
+        this.testRequest++;
+        this.checkingModels = this.testingModel = false;
+        this.ModelTools.hidden = !vertex;
+        this.ModelDetails.hidden = true;
+        this.ModelReport.textContent = '';
+        if (!this.sameProfile(this.checkedModels?.profile)) this.checkedModels = null;
+        if (vertex) {
+            this.renderClinicalModels(this.checkedModels?.models || [], true);
+            this.ModelStatus.textContent = this.checkedModels ? '確認済みのモデルを表示しています。' : '「最新取得」で、この接続先で使えるモデルを確認します。';
+        } else {
+            this.renderClinicalModels(MODEL_PRESETS, false);
+            this.ModelStatus.textContent = '';
+        }
+        this.updateControls();
+    }
+
+    async refreshVertexModels() {
+        const active = this.activeProfile();
+        if (active?.provider !== 'vertex-express' || !active.key || this.checkingModels || this.testingModel) return;
+        const profile = { ...active };
+        const generation = ++this.modelRequest;
+        const current = () => generation === this.modelRequest && this.sameProfile(profile);
+        this.checkingModels = true;
+        this.ModelStatus.textContent = 'Vertexのモデルを確認中…';
+        this.updateControls();
+        try {
+            const { source, results } = await verifyExpressCatalog(profile.key, { current });
+            if (!current()) return;
+            const confirmed = results.filter(item => item.state === 'verified').map(item => item.model);
+            this.checkedModels = { profile, models: confirmed, ids: new Set(confirmed.map(m => m.id)) };
+            this.renderClinicalModels(confirmed, true);
+            const issues = results.filter(item => item.state !== 'verified');
+            this.ModelDetails.hidden = !issues.length;
+            this.ModelReport.textContent = issues.map(item => `${item.state === 'unknown' ? '未確認' : '利用不可'}: ${item.model.id}${item.status ? ' (HTTP ' + item.status + ')' : ''}`).join('\n');
+            this.ModelStatus.textContent = `${source}：トークン計測確認 ${confirmed.length}件。文章生成は「接続テスト」で確認できます。`;
+        } finally {
+            if (current()) { this.checkingModels = false; this.updateControls(); }
+        }
+    }
+
+    async testVertexModel() {
+        const active = this.activeProfile();
+        const model = this.model.value;
+        if (active?.provider !== 'vertex-express' || !model || !this.modelVerified(active, model) ||
+            this.testingModel || this.checkingModels) return;
+        const profile = { ...active };
+        const generation = ++this.testRequest;
+        const current = () => generation === this.testRequest && this.model.value === model && this.sameProfile(profile);
+        this.testingModel = true;
+        this.ModelStatus.textContent = '固定の短文で生成を確認中…';
+        this.updateControls();
+        try {
+            const r = await fetch(this.recorder.buildGenerateContentUrl(model, profile.provider), {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': profile.key },
+                body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'This is a connection test. Reply with OK.' }] }], generationConfig: { maxOutputTokens: 128 } }),
+                signal: AbortSignal.timeout(20000)
+            });
+            if (!current()) return;
+            if (!r.ok) {
+                this.ModelStatus.textContent = `生成テスト失敗（HTTP ${r.status}）。`;
+                if ([403, 404].includes(r.status)) {
+                    this.checkedModels.ids.delete(model);
+                    this.checkedModels.models = this.checkedModels.models.filter(m => m.id !== model);
+                    this.renderClinicalModels(this.checkedModels.models, true);
+                    this.ModelDetails.hidden = false;
+                    this.ModelReport.textContent += '\n生成で利用不可: ' + model + ' (HTTP ' + r.status + ')';
+                }
+                return;
+            }
+            const data = await r.json();
+            if (current()) this.ModelStatus.textContent = data.candidates?.some(c => c.content?.parts?.some(p => !p.thought && p.text?.trim()))
+                ? '生成成功（固定の短文のみ送信）' : '接続しましたが応答本文を確認できませんでした。';
+        } catch {
+            if (current()) this.ModelStatus.textContent = '生成を確認できませんでした（通信エラーまたはタイムアウト）。';
+        } finally {
+            if (generation === this.testRequest && this.sameProfile(profile)) { this.testingModel = false; this.updateControls(); }
+        }
     }
 
     showLegacy(view) {
@@ -3845,7 +4072,13 @@ class ClinicalEditor {
         this.note.readOnly = busy || !attached;
         for (const el of [this.model, this.profile, this.open, this.other, this.settings]) el.disabled = busy;
         this.copy.disabled = busy || !this.note.value.trim() || stale;
-        this.submit.disabled = busy || !this.source.value.trim() || !this.profile.value;
+        const profile = this.activeProfile();
+        const vertex = profile?.provider === 'vertex-express';
+        const ready = Boolean(profile?.key && this.model.value && this.modelVerified(profile, this.model.value));
+        this.model.disabled ||= Boolean(vertex && (this.checkingModels || !this.checkedModels?.ids.size));
+        this.RefreshModels.disabled = busy || this.checkingModels || this.testingModel;
+        this.TestModel.disabled = busy || this.checkingModels || this.testingModel || !ready;
+        this.submit.disabled = busy || this.checkingModels || this.testingModel || !this.source.value.trim() || !ready;
         this.submit.textContent = this.request ? '作成中…' : attached ? '病状説明記録を再作成' : '病状説明記録を作成';
         this.count.textContent = this.source.value.length.toLocaleString('ja-JP') + ' 字';
         this.sentBox.hidden = !stale;
@@ -3889,7 +4122,8 @@ class ClinicalEditor {
     async generate() {
         const profile = this.recorder.apiKeys.find(p => p.id === this.profile.value);
         const source = this.source.value;
-        if (!source.trim() || !profile?.key || this.request || this.loadingFile) return;
+        if (!source.trim() || !profile?.key || this.request || this.loadingFile || this.checkingModels ||
+            this.testingModel || !this.model.value || !this.modelVerified(profile, this.model.value)) return;
         if (this.noteEdited && !confirm('再作成が成功すると、手直しした記録案を置き換えます。続けますか？')) return;
         localStorage.setItem('voice_rec_clinical_profile', profile.id);
         const controller = new AbortController();
@@ -3899,7 +4133,7 @@ class ClinicalEditor {
         this.updateControls();
         this.message('Geminiで記録案を作成しています…');
         try {
-            const result = await this.recorder.executeTextApiCall(source, { profile, model, controller });
+            const result = await this.recorder.executeTextApiCall(source, { profile, model, controller, canSend: () => this.modelVerified(profile, model) });
             if (this.request !== controller) return;
             this.sent.textContent = source;
             this.note.value = result.text;
